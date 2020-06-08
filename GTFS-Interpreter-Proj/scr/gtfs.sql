@@ -1,6 +1,7 @@
 -- Drop tables if they exist
 DROP TABLE IF EXISTS prepaid_fares;
 DROP TABLE IF EXISTS enum_expf_exception_type;
+DROP TABLE IF EXISTS bulk_pass_demographics;
 DROP TABLE IF EXISTS bulk_pass_vehicle_purchase;
 DROP TABLE IF EXISTS bulk_pass_purchase_groups;
 DROP TABLE IF EXISTS bulk_pass_purchase_locations;
@@ -51,7 +52,7 @@ DROP TABLE IF EXISTS enum_calendar_date;
 DROP TABLE IF EXISTS enum_pickup_drop_off;
 DROP TABLE IF EXISTS enum_route_types;
 DROP TABLE IF EXISTS enum_location_type;
-DROP TABLE IF EXISTS enum_trilean;
+DROP TABLE IF EXISTS enum_tristate;
 DROP TABLE IF EXISTS enum_boolean;
 
 -- Let's define all the enums at the start.
@@ -63,11 +64,11 @@ INSERT INTO enum_boolean VALUES
   (0, 'False'),
   (1, 'True');
 
-CREATE TABLE enum_trilean (
+CREATE TABLE enum_tristate (
   enum_val INTEGER PRIMARY KEY,
   enum_prose TEXT NOT NULL
 );
-INSERT INTO enum_trilean VALUES
+INSERT INTO enum_tristate VALUES
   (0, 'Unknown'),
   (1, 'Yes'),
   (2, 'No');
@@ -186,7 +187,7 @@ CREATE TABLE stops (
   location_type INTEGER NOT NULL REFERENCES enum_location_type DEFAULT 0,
   parent_station TEXT REFERENCES stops,
   stop_timezone TEXT,
-  wheelchair_boarding INTEGER NOT NULL REFERENCES enum_trilean DEFAULT 0,
+  wheelchair_boarding INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0,
   level_id TEXT REFERENCES levels,
   platform_code TEXT
 );
@@ -239,8 +240,8 @@ CREATE TABLE trips (
   direction_id INTEGER REFERENCES enum_boolean,
   block_id TEXT,
   shape_id TEXT REFERENCES shapes,
-  wheelchair_accessible INTEGER NOT NULL REFERENCES enum_trilean DEFAULT 0,
-  bikes_allowed INTEGER NOT NULL REFERENCES enum_trilean DEFAULT 0
+  wheelchair_accessible INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0,
+  bikes_allowed INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0
 );
 
 CREATE TABLE stop_times (
@@ -595,11 +596,11 @@ CREATE TABLE bulk_pass_purchase_locations (
   location_url TEXT,
   agency_id TEXT REFERENCES agency,
   location_type INTEGER NOT NULL REFERENCES enum_exbp_location_types DEFAULT 0,
-  accepts_cash INTEGER NOT NULL REFERENCES enum_trilean DEFAULT 0,
-  accepts_credit INTEGER NOT NULL REFERENCES enum_trilean DEFAULT 0,
-  accepts_mobile_pay INTEGER NOT NULL REFERENCES enum_trilean DEFAULT 0,
-  accepts_smart_card INTEGER NOT NULL REFERENCES enum_trilean DEFAULT 0,
-  accepts_check INTEGER NOT NULL REFERENCES enum_trilean DEFAULT 0
+  accepts_cash INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0,
+  accepts_credit INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0,
+  accepts_mobile_pay INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0,
+  accepts_smart_card INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0,
+  accepts_check INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0
 );
 
 CREATE TABLE bulk_pass_purchase_groups (
