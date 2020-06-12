@@ -375,7 +375,8 @@ INSERT INTO enum_extt_column_type VALUES
   (4, 'Previous route'),
   (5, 'Previous trip'),
   (6, 'Next route'),
-  (7, 'Next trip');
+  (7, 'Next trip'),
+  (8, 'Note column');
 
 CREATE TABLE enum_extt_prefix_suffix_condition (
   enum_val INTEGER PRIMARY KEY,
@@ -429,6 +430,9 @@ CREATE TABLE timetable_column_stops (
   around_stop_id TEXT REFERENCES stops,
   around_direction TEXT NOT NULL REFERENCES enum_extt_around_stop_type DEFAULT 0,
   only_timepoint TEXT NOT NULL REFERENCES enum_boolean DEFAULT 0,
+  column_stop_prefix TEXT,
+  column_stop_value TEXT,
+  column_stop_suffix TEXT,
   FOREIGN KEY (timetable_id, column_index) REFERENCES timetable_columns (timetable_id, column_index),
   PRIMARY KEY (timetable_id, column_index, stop_precedence)
 );
@@ -452,8 +456,9 @@ CREATE TABLE timetable_rows (
 CREATE TABLE timetable_notes (
   timetable_id TEXT NOT NULL REFERENCES timetables,
   note_text TEXT NOT NULL,
-  note_order INTEGER,
+  header_note_order INTEGER,
   note_time TEXT,
+  footer_note_order INTEGER,
   service_id TEXT NOT NULL REFERENCES calendar
 );
 
