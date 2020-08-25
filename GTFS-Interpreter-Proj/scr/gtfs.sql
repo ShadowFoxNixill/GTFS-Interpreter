@@ -159,7 +159,7 @@ INSERT INTO enum_table_names VALUES
 CREATE TABLE agency (
   agency_id TEXT PRIMARY KEY NOT NULL,
   agency_name TEXT NOT NULL,
-  agency_url TEXT NOT NULL,
+  agency_url TEXT,
   agency_timezone TEXT NOT NULL,
   agency_lang TEXT,
   agency_phone TEXT,
@@ -317,7 +317,7 @@ CREATE TABLE pathways (
 
 CREATE TABLE feed_info (
   feed_publisher_name TEXT NOT NULL,
-  feed_publisher_url TEXT NOT NULL,
+  feed_publisher_url TEXT,
   feed_lang TEXT NOT NULL,
   default_lang TEXT,
   feed_start_date TEXT,
