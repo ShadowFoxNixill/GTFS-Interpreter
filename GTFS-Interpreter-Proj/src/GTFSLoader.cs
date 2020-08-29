@@ -21,8 +21,12 @@ namespace Nixill.GTFS {
         }
 
         // If it's not newer, we'll have to create the database ourself.
-        // Let's delete the old one first 
+        // Let's delete the old one first.
+        File.Delete(path + ".db");
       }
+
+      // We'll make a new GTFS object first.
+
     }
   }
 }
