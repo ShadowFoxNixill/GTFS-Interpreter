@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CS-NixLib" Version="0.7.0" />
+    <PackageReference Include="CS-NixLib" Version="0.7.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="3.1.7" />
   </ItemGroup>
 
