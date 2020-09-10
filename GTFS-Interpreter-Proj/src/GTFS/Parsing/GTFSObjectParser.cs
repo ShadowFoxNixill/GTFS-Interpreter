@@ -7,7 +7,8 @@ namespace Nixill.GTFS.Parsing {
     private static Regex RgxColorCheck = new Regex(@"^(\#?)((?:[0-9A-Z]{3,4}){1,2})$", RegexOptions.IgnoreCase);
     private static Regex RgxCurrency = new Regex(@"^([A-Z]{3})$", RegexOptions.IgnoreCase);
     private static Regex RgxDate = new Regex(@"^(\d{4})(\d\d)(\d\d)$");
-    private static Regex RgxEmail = new Regex(@"")
+    private static Regex RgxEmail = new Regex(@"^\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b$", RegexOptions.IgnoreCase);
+    private static Regex RgxLanguage = new Regex(@"")
 
     internal static object GetObject(GTFSDataType type, bool required, string value, ref string warning) {
       // Since we're working with SQLite, all non-numbers will be returned as text.
