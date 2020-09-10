@@ -34,19 +34,6 @@ namespace Nixill.GTFS.Parsing {
       return FileUtils.StreamCharEnumerator(new StreamReader(ent.Open()));
     }
 
-    internal static object GetObject(GTFSDataType type, bool required, string value, ref string warning) {
-      // Since we're working with SQLite, all non-numbers will be returned as text.
-      if (type == GTFSDataType.Color) {
-        if (Regex.IsMatch(value, @"^[0-9A-Fa-f]{6}$")) {
-          return value;
-        }
-        else if (Regex.IsMatch(value, @"^[0-9A-Fa-f]{3}$")) {
-          warning = "Color value using three hex digits (automatically expanded to six)";
-          return value[0] + value[0] + value[1] + value[1] + value[2] + value[2];
-        }
-      }
-    }
-
     internal static void CreateTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings,
       string tableName, bool required, List<GTFSColumn> columns, bool agencyIdColumn = false,
       string virtualEntityTable = null, GTFSColumn? virtualEntityColumn = null,
