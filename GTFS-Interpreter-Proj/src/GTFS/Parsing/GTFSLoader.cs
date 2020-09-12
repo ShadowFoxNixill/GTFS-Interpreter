@@ -12,30 +12,9 @@ namespace Nixill.GTFS.Parsing {
         throw new FileNotFoundException("This file does not exist.", path);
       }
 
-      // If the path *is* a database, just load it as a database.
-      if (path.EndsWith(".db")) {
-        return new GTFSFile(path);
-      }
-
-      // Otherwise check if the database exists.
-      if (File.Exists(path + ".db")) {
-        // If so, is it newer?
-        if (File.GetLastWriteTimeUtc(path + ".db") > File.GetLastWriteTimeUtc(path)) {
-          return new GTFSFile(path + ".db");
-        }
-
-        // If it's not newer, we'll have to create the database ourself.
-        // Let's delete the old one first.
-        File.Delete(path + ".db");
-      }
-
-      return BuildDatabase(path);
-    }
-
-    private static GTFSFile BuildDatabase(string path) {
       // So now we have to populate the database pretty much from scratch.
       string connStr = new SqliteConnectionStringBuilder("") {
-        DataSource = path + ".db",
+        DataSource = ":memory:",
         ForeignKeys = true
       }.ToString();
 
@@ -45,8 +24,17 @@ namespace Nixill.GTFS.Parsing {
       // Open the zip file
       using ZipArchive file = ZipFile.OpenRead(path);
 
+      // We need a warnings object too
+      GTFSWarnings warnings = new GTFSWarnings();
+
+      // And the file object
+      GTFSFile ret = new GTFSFile(conn, warnings);
+
       // Now start actually creating tables.
-      GTFSMaker.CreateAgencyTable(conn, file);
+      GTFSMaker.CreateFileInfoTable(conn, file, warnings);
+
+      // And output! :D
+      return ret;
     }
   }
 }

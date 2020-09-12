@@ -15,12 +15,14 @@ namespace Nixill.GTFS.Parsing {
     internal GTFSDataType Type;
     internal bool Required;
     internal string ColumnDef;
+    internal bool PrimaryKey;
 
-    internal GTFSColumn(string name, GTFSDataType type, string columnDef, bool required = false) {
+    internal GTFSColumn(string name, GTFSDataType type, string columnDef, bool required = false, bool primaryKey = false) {
       Name = name;
       Type = type;
       Required = required;
       ColumnDef = columnDef;
+      PrimaryKey = primaryKey;
     }
   }
 
@@ -40,7 +42,7 @@ namespace Nixill.GTFS.Parsing {
       string primaryKey = null, List<string> parentTables = null) {
       // Long method signature. Here's the start of the code.
       // Let's open a transaction and make a command.
-      conn.BeginTransaction();
+      SqliteTransaction trans = conn.BeginTransaction();
       SqliteCommand cmd = conn.CreateCommand();
 
       // First, if there's a virtual entity table, we need to make that first.
@@ -112,13 +114,14 @@ namespace Nixill.GTFS.Parsing {
       else {
         // If we have the file, let's parse the table!
         // we do something different on the first row
-        bool firstRow = true;
+        int rows = 0;
         List<GTFSColumn?> usedCols = new List<GTFSColumn?>();
         List<string> usedNames = new List<string>();
+        List<string> tableWarns = new List<string>();
 
         // Iterate the rows
         foreach (IList<string> row in CSVParser.EnumerableToRows(ZipEntryCharIterator(tableFile))) {
-          if (firstRow) {
+          if (rows == 0) {
             IList<string> header = row;
 
             // Check the list of columns against the required ones.
@@ -161,20 +164,77 @@ namespace Nixill.GTFS.Parsing {
           }
           else {
             int c = 0;
+            List<string> rowWarns = new List<string>();
+            bool skipRow = false;
+            string pimaryKey = "Row " + rows;
+
+            // Iterate through the columns
             for (int i = 0; i < row.Count && i < usedCols.Count; i++) {
               // Skip unrecognized columns
               if (usedCols[i] == null) continue;
 
               // Let's get the parameter value
               GTFSColumn col = usedCols[i].Value;
-              string warning = null;
-              object param = GetObject(col.Type, col.Required, row[i], ref warning);
+              List<string> warns = new List<string>();
+              object param = GTFSObjectParser.GetObject(col.Type, row[i], ref warns);
 
-              // 
+              // Add the parameter to the command
+              cmd.Parameters.AddWithValue("@p" + c, param);
+
+              // If there are any warnings, add them to the row list.
+              foreach (string warn in warns) {
+                rowWarns.Add(col.Name + " - " + warn);
+              }
+
+              // If there are any required columns that have a null, let's drop the row.
+              if (param == null && col.Required) {
+                skipRow = true;
+                rowWarns.Add(col.Name + " - Required but no value given.");
+              }
+
+              // Use a primary key to identify the row.
+              if (param != null && col.PrimaryKey) {
+                primaryKey = row[i];
+              }
+            }
+
+            // If we're not skipping the row, insert it now.
+            if (!skipRow) {
+              cmd.Prepare();
+              cmd.ExecuteNonQuery();
+            }
+
+            // Incorporate all the row's warnings into the table's warnings.
+            foreach (string warn in rowWarns) {
+              tableWarns.Add(primaryKey + " - " + warn);
             }
           }
+          rows++;
         }
       }
+
+      cmd.Dispose();
+
+      // End the transaction too
+      trans.Commit();
+      trans.Dispose();
+    }
+
+    internal static void CreateFileInfoTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings) {
+      CreateTable(
+        conn: conn, zip: zip, warnings: warnings,
+        tableName: "feed_info", required: false,
+        columns: new List<GTFSColumn> {
+          new GTFSColumn("feed_publisher_name", GTFSDataType.Text, "TEXT NOT NULL", true),
+          new GTFSColumn("feed_publisher_url", GTFSDataType.Text, "TEXT"),
+          new GTFSColumn("feed_lang", GTFSDataType.Language, "TEXT NOT NULL", true),
+          new GTFSColumn("default_lang", GTFSDataType.Language, "TEXT"),
+          new GTFSColumn("feed_start_date", GTFSDataType.Date, "TEXT"),
+          new GTFSColumn("feed_end_date", GTFSDataType.Date, "TEXT"),
+          new GTFSColumn("feed_version", GTFSDataType.Text, "TEXT"),
+          new GTFSColumn("feed_contact_email", GTFSDataType.Email, "TEXT"),
+          new GTFSColumn("feed_contact_url", GTFSDataType.Url, "TEXT")
+        });
     }
 
     internal static void CreateAgencyTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings) {
