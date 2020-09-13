@@ -189,6 +189,16 @@ namespace Nixill.GTFS.Parsing {
         }
       }
 
+      else if (type == GTFSDataType.Language) {
+        if (RgxLanguage.IsMatch(value)) {
+          return value;
+        }
+        else {
+          warns.Add(value + " is not a valid language code.");
+          return null;
+        }
+      }
+
       else if (type == GTFSDataType.Latitude) {
         if (float.TryParse(value, out float lat)) {
           if (lat < -90 || lat > 90) {
@@ -344,7 +354,7 @@ namespace Nixill.GTFS.Parsing {
     }
 
     internal static Color? GetColor(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       Match match = RgxColorTest.Match((string)input);
       int red = NumberUtils.StringToInt(match.Groups[1].Value, 16);
       int green = NumberUtils.StringToInt(match.Groups[2].Value, 16);
@@ -353,12 +363,12 @@ namespace Nixill.GTFS.Parsing {
     }
 
     internal static string GetCurrency(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       return (string)input;
     }
 
     internal static LocalDate? GetDate(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       Match match = RgxDate.Match((string)input);
       int year = int.Parse(match.Groups[1].Value);
       int month = int.Parse(match.Groups[3].Value);
@@ -367,47 +377,47 @@ namespace Nixill.GTFS.Parsing {
     }
 
     internal static string GetEmail(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       return (string)input;
     }
 
     internal static int? GetEnum(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       return (int)input;
     }
 
     internal static string GetID(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       return (string)input;
     }
 
     internal static string GetLanguage(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       return (string)input;
     }
 
     internal static float? GetFloat(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       return (float)input;
     }
 
     internal static int? GetInteger(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       return (int)input;
     }
 
     internal static string GetPhone(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       return (string)input;
     }
 
     internal static string GetText(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       return (string)input;
     }
 
     internal static Duration? GetTime(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       Match match = RgxTime.Match((string)input);
       int hour = int.Parse(match.Groups[1].Value);
       int minute = int.Parse(match.Groups[2].Value);
@@ -416,12 +426,12 @@ namespace Nixill.GTFS.Parsing {
     }
 
     internal static DateTimeZone GetTimezone(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       return Tzdb.GetZoneOrNull((string)input);
     }
 
     internal static Uri GetUrl(object input) {
-      if (input == null) return null;
+      if (input == null || input is DBNull) return null;
       return new Uri((string)input, UriKind.Absolute);
     }
   }

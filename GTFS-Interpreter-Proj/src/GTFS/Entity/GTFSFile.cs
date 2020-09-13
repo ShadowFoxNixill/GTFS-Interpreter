@@ -5,7 +5,7 @@ using Nixill.GTFS.Parsing;
 
 namespace Nixill.GTFS.Entity {
   public class GTFSFile : IDisposable {
-    private SqliteConnection Conn;
+    internal SqliteConnection Conn;
     private GTFSWarnings Warnings;
     private HashSet<string> Files;
 

@@ -196,6 +196,9 @@ namespace Nixill.GTFS.Parsing {
               if (param != null && col.PrimaryKey) {
                 primaryKey = row[i];
               }
+
+              // DON'T FORGET TO ACTUALLY INCREMENT THE USED COLUMN COUNTER YOU DUMBASS
+              c++;
             }
 
             // Incorporate all the row's warnings into the table's warnings.

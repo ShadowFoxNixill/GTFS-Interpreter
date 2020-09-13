@@ -18,7 +18,7 @@ namespace Nixill.GTFS.Parsing {
         ForeignKeys = true
       }.ToString();
 
-      using SqliteConnection conn = new SqliteConnection(connStr);
+      SqliteConnection conn = new SqliteConnection(connStr);
       conn.Open();
 
       // Open the zip file
