@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Drawing;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -5,15 +7,23 @@ using Nixill.Utils;
 using NodaTime;
 
 namespace Nixill.GTFS.Parsing {
+  internal enum GTFSDataType {
+    Color, Currency, Date, Email, Enum, ID, Language, Latitude, Longitude, Float, NonNegativeFloat,
+    PositiveFloat, Integer, NonNegativeInteger, PositiveInteger, Phone, Time, Text, Timezone, Url
+  }
+
   internal static class GTFSObjectParser {
     // All the regex defines
     // Many won't be validated because of flexibility of the types
     private static Regex RgxColorCheck = new Regex(@"^(\#?)([0-9A-Z]{3}(?:[0-9A-Z](?:[0-9A-Z]{2}(?:[0-9A-Z]{2})?)?)?)$", RegexOptions.IgnoreCase);
+    private static Regex RgxColorTest = new Regex(@"^([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})$");
     private static Regex RgxCurrency = new Regex(@"^([A-Z]{3})$", RegexOptions.IgnoreCase);
     private static Regex RgxDate = new Regex(@"^(\d{4})([-/\. ]?)(\d\d)([-/\. ]?)(\d\d)$");
     private static Regex RgxEmail = new Regex(@"^\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b$", RegexOptions.IgnoreCase);
     private static Regex RgxLanguage = new Regex(@"^[A-Z0-9]{1,8}(-[A-Z0-9]{1,8})*", RegexOptions.IgnoreCase);
     private static Regex RgxTime = new Regex(@"^(\d+):(\d\d):(\d\d)$");
+
+    private static IDateTimeZoneProvider Tzdb = DateTimeZoneProviders.Tzdb;
 
     internal static object GetObject(GTFSDataType type, string value, ref List<string> warns) {
       // Let's get a match object and an output object ready
@@ -331,6 +341,88 @@ namespace Nixill.GTFS.Parsing {
       }
 
       return null;
+    }
+
+    internal static Color? GetColor(object input) {
+      if (input == null) return null;
+      Match match = RgxColorTest.Match((string)input);
+      int red = NumberUtils.StringToInt(match.Groups[1].Value, 16);
+      int green = NumberUtils.StringToInt(match.Groups[2].Value, 16);
+      int blue = NumberUtils.StringToInt(match.Groups[3].Value, 16);
+      return Color.FromArgb(red, green, blue);
+    }
+
+    internal static string GetCurrency(object input) {
+      if (input == null) return null;
+      return (string)input;
+    }
+
+    internal static LocalDate? GetDate(object input) {
+      if (input == null) return null;
+      Match match = RgxDate.Match((string)input);
+      int year = int.Parse(match.Groups[1].Value);
+      int month = int.Parse(match.Groups[3].Value);
+      int day = int.Parse(match.Groups[5].Value);
+      return new LocalDate(year, month, day);
+    }
+
+    internal static string GetEmail(object input) {
+      if (input == null) return null;
+      return (string)input;
+    }
+
+    internal static int? GetEnum(object input) {
+      if (input == null) return null;
+      return (int)input;
+    }
+
+    internal static string GetID(object input) {
+      if (input == null) return null;
+      return (string)input;
+    }
+
+    internal static string GetLanguage(object input) {
+      if (input == null) return null;
+      return (string)input;
+    }
+
+    internal static float? GetFloat(object input) {
+      if (input == null) return null;
+      return (float)input;
+    }
+
+    internal static int? GetInteger(object input) {
+      if (input == null) return null;
+      return (int)input;
+    }
+
+    internal static string GetPhone(object input) {
+      if (input == null) return null;
+      return (string)input;
+    }
+
+    internal static string GetText(object input) {
+      if (input == null) return null;
+      return (string)input;
+    }
+
+    internal static Duration? GetTime(object input) {
+      if (input == null) return null;
+      Match match = RgxTime.Match((string)input);
+      int hour = int.Parse(match.Groups[1].Value);
+      int minute = int.Parse(match.Groups[2].Value);
+      int second = int.Parse(match.Groups[3].Value);
+      return Duration.FromSeconds((hour * 60 + minute) * 60 + second);
+    }
+
+    internal static DateTimeZone GetTimezone(object input) {
+      if (input == null) return null;
+      return Tzdb.GetZoneOrNull((string)input);
+    }
+
+    internal static Uri GetUrl(object input) {
+      if (input == null) return null;
+      return new Uri((string)input, UriKind.Absolute);
     }
   }
 }

@@ -26,17 +26,12 @@ namespace Nixill.GTFS.Parsing {
     }
   }
 
-  internal enum GTFSDataType {
-    Color, Currency, Date, Email, Enum, ID, Language, Latitude, Longitude, Float, NonNegativeFloat,
-    PositiveFloat, Integer, NonNegativeInteger, PositiveInteger, Phone, Time, Text, Timezone, Url
-  }
-
   internal static class GTFSMaker {
     internal static IEnumerable<char> ZipEntryCharIterator(ZipArchiveEntry ent) {
       return FileUtils.StreamCharEnumerator(new StreamReader(ent.Open()));
     }
 
-    internal static void CreateTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings,
+    internal static bool CreateTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings,
       string tableName, bool required, List<GTFSColumn> columns, bool agencyIdColumn = false,
       string virtualEntityTable = null, GTFSColumn? virtualEntityColumn = null,
       string primaryKey = null, List<string> parentTables = null) {
@@ -102,6 +97,9 @@ namespace Nixill.GTFS.Parsing {
       cmd.ExecuteNonQuery();
       cmd.Dispose();
 
+      // Are we populating this table?
+      bool populated = false;
+
       // Now let's parse the actual table.
       ZipArchiveEntry tableFile = zip.GetEntry(tableName + ".txt");
 
@@ -112,6 +110,8 @@ namespace Nixill.GTFS.Parsing {
         }
       }
       else {
+        populated = true;
+
         // If we have the file, let's parse the table!
         // we do something different on the first row
         int rows = 0;
@@ -198,15 +198,21 @@ namespace Nixill.GTFS.Parsing {
               }
             }
 
-            // If we're not skipping the row, insert it now.
-            if (!skipRow) {
-              cmd.Prepare();
-              cmd.ExecuteNonQuery();
-            }
-
             // Incorporate all the row's warnings into the table's warnings.
             foreach (string warn in rowWarns) {
               tableWarns.Add(primaryKey + " - " + warn);
+            }
+
+            // If we're not skipping the row, insert it now.
+            if (!skipRow) {
+              cmd.Prepare();
+              try {
+                cmd.ExecuteNonQuery();
+                populated = true;
+              }
+              catch (SqliteException ex) {
+                tableWarns.Add(primaryKey + " - SqliteException: " + ex);
+              }
             }
           }
           rows++;
@@ -218,10 +224,13 @@ namespace Nixill.GTFS.Parsing {
       // End the transaction too
       trans.Commit();
       trans.Dispose();
+
+      // Lastly: Output whether or not the table has stuff in it.
+      return populated;
     }
 
-    internal static void CreateFileInfoTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings) {
-      CreateTable(
+    internal static bool CreateFeedInfoTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings) {
+      return CreateTable(
         conn: conn, zip: zip, warnings: warnings,
         tableName: "feed_info", required: false,
         columns: new List<GTFSColumn> {
@@ -237,8 +246,8 @@ namespace Nixill.GTFS.Parsing {
         });
     }
 
-    internal static void CreateAgencyTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings) {
-      CreateTable(
+    internal static bool CreateAgencyTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings) {
+      return CreateTable(
         conn: conn, zip: zip, warnings: warnings,
         tableName: "agency.txt", required: true,
         columns: new List<GTFSColumn> {

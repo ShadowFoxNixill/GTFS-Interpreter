@@ -1,11 +1,11 @@
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using Microsoft.Data.Sqlite;
 using Nixill.GTFS.Entity;
 
 namespace Nixill.GTFS.Parsing {
-  public class GTFSLoader {
-
+  public static class GTFSLoader {
     public static GTFSFile Load(string path) {
       // First make sure the path itself exists
       if (!File.Exists(path)) {
@@ -27,11 +27,14 @@ namespace Nixill.GTFS.Parsing {
       // We need a warnings object too
       GTFSWarnings warnings = new GTFSWarnings();
 
+      // And the list of loaded files
+      HashSet<string> files = new HashSet<string>();
+
       // And the file object
-      GTFSFile ret = new GTFSFile(conn, warnings);
+      GTFSFile ret = new GTFSFile(conn, warnings, files);
 
       // Now start actually creating tables.
-      GTFSMaker.CreateFileInfoTable(conn, file, warnings);
+      if (GTFSMaker.CreateFeedInfoTable(conn, file, warnings)) files.Add("feed_info");
 
       // And output! :D
       return ret;
