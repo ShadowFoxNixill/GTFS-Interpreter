@@ -21,6 +21,14 @@ namespace Nixill.Testing {
         Console.WriteLine("(" + agency.ID + ") " + agency.Name);
       }
 
+      /*
+      Console.Write("Enter an agency ID: ");
+      string id = Console.ReadLine();
+
+      GTFSAgency agencyById = file.GetAgencyById(id);
+      Console.WriteLine("That is the agency named " + ((agencyById?.Name) ?? "(null)") + ".");
+      //*/
+
       file.Dispose();
     }
   }
