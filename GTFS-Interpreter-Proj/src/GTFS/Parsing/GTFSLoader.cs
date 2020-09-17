@@ -35,6 +35,7 @@ namespace Nixill.GTFS.Parsing {
 
       // Now start actually creating tables.
       if (GTFSMaker.CreateFeedInfoTable(conn, file, warnings)) files.Add("feed_info");
+      if (GTFSMaker.CreateAgencyTable(conn, file, warnings)) files.Add("agency");
 
       // And output! :D
       return ret;

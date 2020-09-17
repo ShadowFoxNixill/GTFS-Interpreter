@@ -5,12 +5,27 @@ namespace Nixill.GTFS.Parsing {
     public IList<GTFSUnusableFileWarning> UnusableFiles;
     internal List<string> _MissingTables;
     public IList<string> MissingTables;
+    internal Dictionary<string, List<string>> _TableWarnings;
+
+    private List<string> EmptyList;
 
     internal GTFSWarnings() {
       _UnusableFiles = new List<GTFSUnusableFileWarning>();
       UnusableFiles = _UnusableFiles.AsReadOnly();
       _MissingTables = new List<string>();
       MissingTables = _MissingTables.AsReadOnly();
+      _TableWarnings = new Dictionary<string, List<string>>();
+
+      EmptyList = new List<string>();
+    }
+
+    public IList<string> GetTableWarnings(string table) {
+      if (_TableWarnings.ContainsKey(table)) {
+        return _TableWarnings[table].AsReadOnly();
+      }
+      else {
+        return EmptyList.AsReadOnly();
+      }
     }
   }
 

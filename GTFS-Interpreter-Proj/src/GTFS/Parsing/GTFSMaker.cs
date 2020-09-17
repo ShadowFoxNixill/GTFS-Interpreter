@@ -103,21 +103,24 @@ namespace Nixill.GTFS.Parsing {
       // Now let's parse the actual table.
       ZipArchiveEntry tableFile = zip.GetEntry(tableName + ".txt");
 
+      // Table warnings
+      List<string> tableWarns = new List<string>();
+
       // If it's a required table, throw an error if it's not found.
       if (tableFile == null) {
         if (required) {
           throw new GTFSParseException(tableName + ".txt is a required file within GTFS.");
         }
+        else {
+          warnings._MissingTables.Add(tableName);
+        }
       }
       else {
-        populated = true;
-
         // If we have the file, let's parse the table!
         // we do something different on the first row
         int rows = 0;
         List<GTFSColumn?> usedCols = new List<GTFSColumn?>();
         List<string> usedNames = new List<string>();
-        List<string> tableWarns = new List<string>();
 
         // Iterate the rows
         foreach (IList<string> row in CSVParser.EnumerableToRows(ZipEntryCharIterator(tableFile))) {
@@ -228,6 +231,9 @@ namespace Nixill.GTFS.Parsing {
       trans.Commit();
       trans.Dispose();
 
+      // Add the warnings to the Warnings object
+      warnings._TableWarnings.Add(tableName, tableWarns);
+
       // Lastly: Output whether or not the table has stuff in it.
       return populated;
     }
@@ -250,9 +256,9 @@ namespace Nixill.GTFS.Parsing {
     }
 
     internal static bool CreateAgencyTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings) {
-      return CreateTable(
+      if (!CreateTable(
         conn: conn, zip: zip, warnings: warnings,
-        tableName: "agency.txt", required: true,
+        tableName: "agency", required: true,
         columns: new List<GTFSColumn> {
           new GTFSColumn("agency_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL"),
           new GTFSColumn("agency_name", GTFSDataType.Text, "TEXT NOT NULL", true),
@@ -263,7 +269,71 @@ namespace Nixill.GTFS.Parsing {
           new GTFSColumn("agency_phone", GTFSDataType.Phone, "TEXT"),
           new GTFSColumn("agency_email", GTFSDataType.Email, "TEXT")
         }, agencyIdColumn: true
-      );
+      )) {
+        throw new GTFSParseException("No agencies were specified.");
+      }
+
+      // So the thing about the agency table is that a timezone has to be
+      // specified by at least one agency, and all of them have to match.
+      // Our error handling will be as follows:
+      // • No timezone specified: Fail to load.
+      // • Some timezones missing: Warn, then fill in default.
+      // • Multiple timezones specified: Warn, then select one for all
+      //   agencies.
+      SqliteCommand cmd = conn.CreateCommand();
+      cmd.CommandText = "SELECT DISTINCT agency_timezone FROM agency;";
+      SqliteDataReader reader = cmd.ExecuteReader();
+
+      // We can guarantee there will be at least one result, because this
+      // point in the code wouldn't be reached if there were nothing.
+      bool nullTimezone = false;
+      bool multiTimezone = false;
+      string timezone = null;
+      while (reader.Read()) {
+        var tz = reader["agency_timezone"];
+        if (tz is DBNull) { nullTimezone = true; }
+        else {
+          string tzone = (string)tz;
+          if (timezone == null) {
+            timezone = tzone;
+          }
+          else {
+            multiTimezone = true;
+          }
+        }
+      }
+
+      cmd.Dispose();
+
+      // If no timezone was specified at all...
+      if (timezone == null) {
+        throw new GTFSParseException("agency_timezone cannot be null for all agencies.");
+      }
+
+      // If not all values were the same timezone...
+      if (nullTimezone || multiTimezone) {
+        List<string> warns = warnings._TableWarnings["agency"];
+        // If some weren't specified...
+        if (nullTimezone) {
+          warns.Add("Agency timezones cannot be null.");
+        }
+        // If multiple were specified...
+        if (multiTimezone) {
+          warns.Add("All agencies must have the same timezone.");
+        }
+
+        // Either way...
+        cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE agency SET agency_timezone = @tz;";
+        cmd.Parameters.AddWithValue("@tz", timezone);
+        cmd.Prepare();
+        cmd.ExecuteNonQuery();
+        cmd.Dispose();
+
+        warns.Add("All timezones were set to " + timezone + ".");
+      }
+
+      return true;
     }
   }
 }
