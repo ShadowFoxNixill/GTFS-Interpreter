@@ -1,28 +1,57 @@
+using System.Diagnostics.Contracts;
 using System.Collections.ObjectModel;
 using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Nixill.GTFS.Parsing;
+using Nixill.GTFS.Enumerations;
 
 namespace Nixill.GTFS.Entity {
+  /// <summary>
+  /// Represents a container for the contents of a single GTFS file.
+  /// </summary>
+  /// <remarks>
+  /// <c>GTFSFile</c> doesn't contain a public constructor; to get a
+  /// reference to a <c>GTFSFile</c> object, use
+  /// <link cref="GTFSLoader.Load(string)"><c>GTFSLoader.Load()</c></link>.
+  /// </remarks>
   public class GTFSFile : IDisposable {
     internal SqliteConnection Conn;
-    private GTFSWarnings Warnings;
     private HashSet<string> Files;
 
     private GTFSFeedInfo _FeedInfo = null;
+    /// <value>
+    /// An object corresponding to the <c>feed_info.txt</c> file of the
+    /// GTFS.
+    /// </value>
     public GTFSFeedInfo FeedInfo => GetFeedInfo();
 
     private Dictionary<string, GTFSAgency> _Agencies = new Dictionary<string, GTFSAgency>();
     private IDictionary<string, GTFSAgency> _AgenciesRO = null;
+    /// <value>
+    /// A read-only dictionary of all the agencies in the GTFS. The keys
+    /// are the agencies' IDs - if only one agency exists with a key not
+    /// specified in <c>agency.txt</c>, the key is "<c>agency</c>".
+    /// </value>
     public IDictionary<string, GTFSAgency> Agencies => GetAgencies();
 
-    internal GTFSFile(SqliteConnection conn, GTFSWarnings warnings, HashSet<string> files) {
+    private Dictionary<string, GTFSRoute> _Routes = new Dictionary<string, GTFSRoute>();
+    private IDictionary<string, GTFSRoute> _RoutesRO = null;
+    /// <value>
+    /// A read-only dictionary of all the routes in the GTFS. The keys are
+    /// the routes' IDs.
+    /// </value>
+    public IDictionary<string, GTFSRoute> Routes => GetRoutes();
+
+    internal GTFSFile(SqliteConnection conn, HashSet<string> files) {
       Conn = conn;
-      Warnings = warnings;
       Files = files;
     }
 
+    /// <summary>
+    /// Disposes this <c>GTFSFile</c>, closing its internal database
+    /// connection.
+    /// </summary>
     public void Dispose() {
       Conn.Dispose();
     }
@@ -63,7 +92,8 @@ namespace Nixill.GTFS.Entity {
     }
 
     private IDictionary<string, GTFSAgency> GetAgencies() {
-      // If we've already cached the agencies, we don't need to go through this song and dance again.
+      // If we've already cached the agencies, we don't need to go through
+      // this song and dance again.
       if (_AgenciesRO != null) return _AgenciesRO;
 
       // Otherwise, let's go through this song and dance.
@@ -104,6 +134,15 @@ namespace Nixill.GTFS.Entity {
       return _AgenciesRO;
     }
 
+    /// <summary>
+    /// Returns the <c>GTFSAgency</c> defined by the given ID. If there is
+    /// no such agency, returns <c>null</c>.
+    /// <para/>
+    /// Note that for GTFS files with only one agency, which don't use an
+    /// <c>agency_id</c> column, this parser assigns the ID of
+    /// "<c>agency</c>" to that agency.
+    /// </summary>
+    /// <param name="agencyID">The ID to retrieve.</param>
     public GTFSAgency GetAgencyById(string agencyID) {
       // First, if we've already retrieved it, just return that.
       if (_Agencies.ContainsKey(agencyID)) {
@@ -142,6 +181,102 @@ namespace Nixill.GTFS.Entity {
 
       // And then output it.
       return agency;
+    }
+
+    private IDictionary<string, GTFSRoute> GetRoutes() {
+      // If we've already cached the routes, we don't need to go through
+      // this song and dance again.
+      if (_RoutesRO != null) return _RoutesRO;
+
+      // Otherwise, let's go through this song and dance.
+      SqliteCommand cmd = Conn.CreateCommand();
+      cmd.CommandText = "SELECT * FROM routes;";
+      using SqliteDataReader reader = cmd.ExecuteReader();
+
+      // Populate the list of routes
+      while (reader.Read()) {
+        string routeID = (string)reader["route_id"];
+
+        // A route might already exist through the GetRouteByID method.
+        if (_Routes.ContainsKey(routeID)) {
+          continue;
+        }
+
+        // Otherwise let's add it now.
+        GTFSRoute route = new GTFSRoute(Conn, this) {
+          ID = GTFSObjectParser.GetID(reader["route_id"]),
+          AgencyID = GTFSObjectParser.GetID(reader["agency_id"]),
+          ShortName = GTFSObjectParser.GetText(reader["route_short_name"]),
+          LongName = GTFSObjectParser.GetText(reader["route_long_name"]),
+          Desc = GTFSObjectParser.GetText(reader["route_desc"]),
+          RouteType = (GTFSRouteType)GTFSObjectParser.GetEnum(reader["route_type"]),
+          URL = GTFSObjectParser.GetUrl(reader["route_url"]),
+          Color = GTFSObjectParser.GetColor(reader["route_color"]),
+          TextColor = GTFSObjectParser.GetColor(reader["route_text_color"]),
+          SortOrder = GTFSObjectParser.GetInteger(reader["route_sort_order"]),
+          ContinuousPickup = (GTFSPickupDropoff)GTFSObjectParser.GetEnum(reader["continuous_pickup"]),
+          ContinuousDropOff = (GTFSPickupDropoff)GTFSObjectParser.GetEnum(reader["continuous_drop_off"])
+        };
+
+        _Routes.Add(routeID, route);
+      }
+
+      cmd.Dispose();
+
+      // Make a read-only wrapper around the dictionary
+      _RoutesRO = new ReadOnlyDictionary<string, GTFSRoute>(_Routes);
+
+      // And return that.
+      return _RoutesRO;
+    }
+
+    /// <summary>
+    /// Returns the <c>GTFSRoute</c> defined by the given ID. If there is
+    /// no such route, returns <c>null</c>.
+    /// </summary>
+    /// <param name="routeID">The ID to retrieve.</param>
+    public GTFSRoute GetRouteById(string routeID) {
+      // First, if we've already retrieved it, just return that.
+      if (_Routes.ContainsKey(routeID)) {
+        return _Routes[routeID];
+      }
+
+      // Otherwise let's look for it.
+      SqliteCommand cmd = Conn.CreateCommand();
+      cmd.CommandText = "SELECT * FROM routes WHERE route_id = @id";
+      cmd.Parameters.AddWithValue("@id", routeID);
+      cmd.Prepare();
+      SqliteDataReader reader = cmd.ExecuteReader();
+
+      // If we have no result, return null.
+      if (!reader.HasRows) {
+        return null;
+      }
+
+      // But otherwise, let's make the agency.
+      reader.Read();
+      GTFSRoute route = new GTFSRoute(Conn, this) {
+        ID = GTFSObjectParser.GetID(reader["route_id"]),
+        AgencyID = GTFSObjectParser.GetID(reader["agency_id"]),
+        ShortName = GTFSObjectParser.GetText(reader["route_short_name"]),
+        LongName = GTFSObjectParser.GetText(reader["route_long_name"]),
+        Desc = GTFSObjectParser.GetText(reader["route_desc"]),
+        RouteType = (GTFSRouteType)GTFSObjectParser.GetEnum(reader["route_type"]),
+        URL = GTFSObjectParser.GetUrl(reader["route_url"]),
+        Color = GTFSObjectParser.GetColor(reader["route_color"]),
+        TextColor = GTFSObjectParser.GetColor(reader["route_text_color"]),
+        SortOrder = GTFSObjectParser.GetInteger(reader["route_sort_order"]),
+        ContinuousPickup = (GTFSPickupDropoff)GTFSObjectParser.GetEnum(reader["continuous_pickup"]),
+        ContinuousDropOff = (GTFSPickupDropoff)GTFSObjectParser.GetEnum(reader["continuous_drop_off"])
+      };
+
+      // And add it to the table.
+      _Routes.Add(routeID, route);
+
+      cmd.Dispose();
+
+      // And then output it.
+      return route;
     }
   }
 }

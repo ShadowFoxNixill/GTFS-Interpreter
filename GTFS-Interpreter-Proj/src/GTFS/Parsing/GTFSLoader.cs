@@ -25,17 +25,19 @@ namespace Nixill.GTFS.Parsing {
       using ZipArchive file = ZipFile.OpenRead(path);
 
       // We need a warnings object too
-      GTFSWarnings warnings = new GTFSWarnings();
+      List<GTFSWarning> warnings = new List<GTFSWarning>();
 
       // And the list of loaded files
       HashSet<string> files = new HashSet<string>();
 
       // And the file object
-      GTFSFile ret = new GTFSFile(conn, warnings, files);
+      GTFSFile ret = new GTFSFile(conn, files);
 
       // Now start actually creating tables.
+      GTFSEnumerableMaker.Make(conn);
       if (GTFSMaker.CreateFeedInfoTable(conn, file, warnings)) files.Add("feed_info");
       if (GTFSMaker.CreateAgencyTable(conn, file, warnings)) files.Add("agency");
+      if (GTFSMaker.CreateRoutesTable(conn, file, warnings)) files.Add("routes");
 
       // And output! :D
       return ret;

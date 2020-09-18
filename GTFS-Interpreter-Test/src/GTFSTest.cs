@@ -20,14 +20,14 @@ namespace Nixill.Testing {
       foreach (GTFSAgency agency in agencies.Values) {
         Console.WriteLine("(" + agency.ID + ") " + agency.Name);
       }
+      Console.WriteLine();
 
-      /*
-      Console.Write("Enter an agency ID: ");
-      string id = Console.ReadLine();
-
-      GTFSAgency agencyById = file.GetAgencyById(id);
-      Console.WriteLine("That is the agency named " + ((agencyById?.Name) ?? "(null)") + ".");
-      //*/
+      IDictionary<string, GTFSRoute> routes = file.Routes;
+      Console.WriteLine("Routes:");
+      foreach (GTFSRoute route in routes.Values) {
+        Console.WriteLine("(" + route.ID + ") " + route.RouteType + " " + route.ShortName + " - " + route.LongName);
+      }
+      Console.WriteLine();
 
       file.Dispose();
     }

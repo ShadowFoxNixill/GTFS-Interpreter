@@ -25,12 +25,12 @@ namespace Nixill.GTFS.Parsing {
 
     private static IDateTimeZoneProvider Tzdb = DateTimeZoneProviders.Tzdb;
 
-    internal static object GetObject(GTFSDataType type, string value, ref List<string> warns) {
+    internal static object GetObject(GTFSDataType type, string value, ref List<GTFSWarning> warns) {
       // Let's get a match object and an output object ready
       Match match = null;
       string ret = null;
       if (warns == null) {
-        warns = new List<string>();
+        warns = new List<GTFSWarning>();
       }
 
       // Blank values should just be null.
@@ -43,17 +43,17 @@ namespace Nixill.GTFS.Parsing {
         if (RgxColorCheck.TryMatch(value, out match)) {
           // Drop a # if one is present.
           if (match.Groups[1].Value == "#") {
-            warns.Add("The # sign is not part of the GTFS standard and was removed.");
+            warns.Add(new GTFSWarning("The # sign is not part of the GTFS standard and was removed."));
           }
 
           // Make sure we have a six-digit color code.
           string color = match.Groups[2].Value;
           if (color.Length == 3) {
-            warns.Add("Three-digit colors may not be read by all clients, and are converted to six-digit by this parser.");
+            warns.Add(new GTFSWarning("Three-digit colors may not be read by all clients, and are converted to six-digit by this parser."));
             ret = "" + color[0] + color[0] + color[1] + color[1] + color[2] + color[2];
           }
           else if (color.Length == 4 || color.Length == 8) {
-            warns.Add("Four- or eight-digit colors (RGB plus alpha) cannot be read by this parser.");
+            warns.Add(new GTFSWarning("Four- or eight-digit colors (RGB plus alpha) cannot be read by this parser."));
             ret = null;
           }
           else {
@@ -63,12 +63,12 @@ namespace Nixill.GTFS.Parsing {
           // Make sure capitalization is correct.
           string upVal = ret.ToUpper();
           if (ret != upVal) {
-            warns.Add("Color codes are normally uppercase.");
+            warns.Add(new GTFSWarning("Color codes are normally uppercase."));
           }
           return upVal;
         }
         else {
-          warns.Add("This is not a valid color. Valid colors are six hex digits, without the preceding #.");
+          warns.Add(new GTFSWarning("This is not a valid color. Valid colors are six hex digits, without the preceding #."));
           return null;
         }
       }
@@ -77,12 +77,12 @@ namespace Nixill.GTFS.Parsing {
         if (RgxCurrency.TryMatch(value, out match)) {
           string upVal = value.ToUpper();
           if (value != upVal) {
-            warns.Add("Currencies are automatically all-caps'd.");
+            warns.Add(new GTFSWarning("Currencies are automatically all-caps'd."));
           }
           return upVal;
         }
         else {
-          warns.Add("Valid currency values are three letters long.");
+          warns.Add(new GTFSWarning("Valid currency values are three letters long."));
           return null;
         }
       }
@@ -91,7 +91,7 @@ namespace Nixill.GTFS.Parsing {
         if (RgxDate.TryMatch(value, out match)) {
           // Remove separators between the numbers.
           if (match.Groups[2].Value != "" || match.Groups[4].Value != "") {
-            warns.Add("Separators are not valid in GTFS dates and have been automatically removed.");
+            warns.Add(new GTFSWarning("Separators are not valid in GTFS dates and have been automatically removed."));
           }
 
           // Get the components.
@@ -101,30 +101,30 @@ namespace Nixill.GTFS.Parsing {
 
           // Validate the actual date entered.
           if (month > 12 || month == 0) {
-            warns.Add("Valid months are 1-12.");
+            warns.Add(new GTFSWarning("Valid months are 1-12."));
             return null;
           }
 
           if (day > 31 || day == 0) {
-            warns.Add("Valid days are 1-31.");
+            warns.Add(new GTFSWarning("Valid days are 1-31."));
             return null;
           }
 
           if (day == 31 && (month == 4 || month == 6 || month == 9 || month == 11)) {
-            warns.Add("Valid days for month " + month + " are 1-30.");
+            warns.Add(new GTFSWarning("Valid days for month " + month + " are 1-30."));
             return null;
           }
 
           if (month == 2) {
             if (day == 31 || day == 30) {
-              warns.Add("Valid days for month 2 are 1-28 with 29 permitted some years.");
+              warns.Add(new GTFSWarning("Valid days for month 2 are 1-28 with 29 permitted some years."));
               return null;
             }
 
             if (day == 29) {
               // Leap year logic
               if ((year % 400 != 0 && year % 100 == 0) || year % 4 != 0) {
-                warns.Add("Valid days for month 2 in year " + year + " are 1-28.");
+                warns.Add(new GTFSWarning("Valid days for month 2 in year " + year + " are 1-28."));
                 return null;
               }
             }
@@ -134,7 +134,7 @@ namespace Nixill.GTFS.Parsing {
           return match.Groups[1].Value + match.Groups[3].Value + match.Groups[5].Value;
         }
         else {
-          warns.Add(value + " is not a valid date!");
+          warns.Add(new GTFSWarning(value + " is not a valid date!"));
           return null;
         }
       }
@@ -144,7 +144,7 @@ namespace Nixill.GTFS.Parsing {
           return value;
         }
         else {
-          warns.Add(value + " doesn't appear to be a valid email address, but has been added anyway.");
+          warns.Add(new GTFSWarning(value + " doesn't appear to be a valid email address, but has been added anyway."));
           return value;
         }
       }
@@ -155,12 +155,12 @@ namespace Nixill.GTFS.Parsing {
             return val;
           }
           else {
-            warns.Add(value + " is not a valid non-negative integer (is negative).");
+            warns.Add(new GTFSWarning(value + " is not a valid non-negative integer (is negative)."));
             return null;
           }
         }
         else {
-          warns.Add(value + " is not a valid non-negative integer (is not a number).");
+          warns.Add(new GTFSWarning(value + " is not a valid non-negative integer (is not a number)."));
           return null;
         }
       }
@@ -170,7 +170,7 @@ namespace Nixill.GTFS.Parsing {
           return val;
         }
         else {
-          warns.Add(value + " is not a valid floating-point number.");
+          warns.Add(new GTFSWarning(value + " is not a valid floating-point number."));
           return null;
         }
       }
@@ -184,7 +184,7 @@ namespace Nixill.GTFS.Parsing {
           return val;
         }
         else {
-          warns.Add(value + " is not a valid integer.");
+          warns.Add(new GTFSWarning(value + " is not a valid integer."));
           return null;
         }
       }
@@ -194,7 +194,7 @@ namespace Nixill.GTFS.Parsing {
           return value;
         }
         else {
-          warns.Add(value + " is not a valid language code.");
+          warns.Add(new GTFSWarning(value + " is not a valid language code."));
           return null;
         }
       }
@@ -202,7 +202,7 @@ namespace Nixill.GTFS.Parsing {
       else if (type == GTFSDataType.Latitude) {
         if (float.TryParse(value, out float lat)) {
           if (lat < -90 || lat > 90) {
-            warns.Add(value + " is not a valid latitude (out of range).");
+            warns.Add(new GTFSWarning(value + " is not a valid latitude (out of range)."));
             return null;
           }
           else {
@@ -210,7 +210,7 @@ namespace Nixill.GTFS.Parsing {
           }
         }
         else {
-          warns.Add(value + " is not a valid latitude (not a number).");
+          warns.Add(new GTFSWarning(value + " is not a valid latitude (not a number)."));
           return null;
         }
       }
@@ -222,12 +222,12 @@ namespace Nixill.GTFS.Parsing {
             if (lon > 180) {
               lon -= 360;
             }
-            warns.Add("Longitude was corrected to " + lon + " (was " + value + ")");
+            warns.Add(new GTFSWarning("Longitude was corrected to " + lon + " (was " + value + ")"));
           }
           return lon;
         }
         else {
-          warns.Add(value + " is not a valid longitude (not a number).");
+          warns.Add(new GTFSWarning(value + " is not a valid longitude (not a number)."));
           return null;
         }
       }
@@ -238,11 +238,11 @@ namespace Nixill.GTFS.Parsing {
             return double.Parse(value);
           }
           else {
-            warns.Add(value + " is not a valid non-negative floating-point number (is negative).");
+            warns.Add(new GTFSWarning(value + " is not a valid non-negative floating-point number (is negative)."));
           }
         }
         else {
-          warns.Add(value + " is not a valid non-negative floating-point number (is not a number).");
+          warns.Add(new GTFSWarning(value + " is not a valid non-negative floating-point number (is not a number)."));
           return null;
         }
       }
@@ -261,16 +261,16 @@ namespace Nixill.GTFS.Parsing {
             return val;
           }
           else if (val == 0) {
-            warns.Add(value + " is not a valid positive floating-point number (is zero).");
+            warns.Add(new GTFSWarning(value + " is not a valid positive floating-point number (is zero)."));
             return null;
           }
           else {
-            warns.Add(value + " is not a valid positive floating-point number (is negative).");
+            warns.Add(new GTFSWarning(value + " is not a valid positive floating-point number (is negative)."));
             return null;
           }
         }
         else {
-          warns.Add(value + " is not a valid positive floating-point number (is not a number).");
+          warns.Add(new GTFSWarning(value + " is not a valid positive floating-point number (is not a number)."));
           return null;
         }
       }
@@ -281,16 +281,16 @@ namespace Nixill.GTFS.Parsing {
             return val;
           }
           else if (val == 0) {
-            warns.Add(value + " is not a valid positive integer (is zero).");
+            warns.Add(new GTFSWarning(value + " is not a valid positive integer (is zero)."));
             return null;
           }
           else {
-            warns.Add(value + " is not a valid positive integer (is negative).");
+            warns.Add(new GTFSWarning(value + " is not a valid positive integer (is negative)."));
             return null;
           }
         }
         else {
-          warns.Add(value + " is not a valid positive integer (is not a number).");
+          warns.Add(new GTFSWarning(value + " is not a valid positive integer (is not a number)."));
           return null;
         }
       }
@@ -311,7 +311,7 @@ namespace Nixill.GTFS.Parsing {
           }
         }
         else {
-          warns.Add(value + " is not a valid time.");
+          warns.Add(new GTFSWarning(value + " is not a valid time."));
           return null;
         }
       }
@@ -325,7 +325,7 @@ namespace Nixill.GTFS.Parsing {
           return value;
         }
         else {
-          warns.Add(value + " is not a valid timezone.");
+          warns.Add(new GTFSWarning(value + " is not a valid timezone."));
           return null;
         }
       }
@@ -334,19 +334,19 @@ namespace Nixill.GTFS.Parsing {
         Uri uriTest;
         if (Uri.TryCreate(value, UriKind.Absolute, out uriTest)) {
           if (uriTest.Scheme == Uri.UriSchemeHttp) {
-            warns.Add(value + " is an http (unsecured) URL.");
+            warns.Add(new GTFSWarning(value + " is an http (unsecured) URL."));
             return value;
           }
           if (uriTest.Scheme == Uri.UriSchemeHttps) {
             return value;
           }
           else {
-            warns.Add(value + " is not a valid URL.");
+            warns.Add(new GTFSWarning(value + " is not a valid URL."));
             return null;
           }
         }
         else {
-          warns.Add(value + " is not a valid URI.");
+          warns.Add(new GTFSWarning(value + " is not a valid URI."));
         }
       }
 
@@ -383,7 +383,7 @@ namespace Nixill.GTFS.Parsing {
 
     internal static int? GetEnum(object input) {
       if (input == null || input is DBNull) return null;
-      return (int)input;
+      return (int)(long)input;
     }
 
     internal static string GetID(object input) {
@@ -396,14 +396,14 @@ namespace Nixill.GTFS.Parsing {
       return (string)input;
     }
 
-    internal static float? GetFloat(object input) {
+    internal static double? GetFloat(object input) {
       if (input == null || input is DBNull) return null;
-      return (float)input;
+      return (double)input;
     }
 
     internal static int? GetInteger(object input) {
       if (input == null || input is DBNull) return null;
-      return (int)input;
+      return (int)(long)input;
     }
 
     internal static string GetPhone(object input) {

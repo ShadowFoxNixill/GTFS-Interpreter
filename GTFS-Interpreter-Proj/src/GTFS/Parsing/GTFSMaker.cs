@@ -31,7 +31,7 @@ namespace Nixill.GTFS.Parsing {
       return FileUtils.StreamCharEnumerator(new StreamReader(ent.Open()));
     }
 
-    internal static bool CreateTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings,
+    internal static bool CreateTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings,
       string tableName, bool required, List<GTFSColumn> columns, bool agencyIdColumn = false,
       string virtualEntityTable = null, GTFSColumn? virtualEntityColumn = null,
       string primaryKey = null, List<string> parentTables = null) {
@@ -104,7 +104,7 @@ namespace Nixill.GTFS.Parsing {
       ZipArchiveEntry tableFile = zip.GetEntry(tableName + ".txt");
 
       // Table warnings
-      List<string> tableWarns = new List<string>();
+      List<GTFSWarning> tableWarns = new List<GTFSWarning>();
 
       // If it's a required table, throw an error if it's not found.
       if (tableFile == null) {
@@ -112,7 +112,9 @@ namespace Nixill.GTFS.Parsing {
           throw new GTFSParseException(tableName + ".txt is a required file within GTFS.");
         }
         else {
-          warnings._MissingTables.Add(tableName);
+          warnings.Add(new GTFSWarning("Optional table not included in GTFS.") {
+            Table = tableName
+          });
         }
       }
       else {
@@ -150,8 +152,15 @@ namespace Nixill.GTFS.Parsing {
               }
               // Otherwise just log the warning and quit parsing this table.
               else {
-                warnings.UnusableFiles.Add(new GTFSUnusableFileWarning(tableName + ".txt", "Missing required column(s) " + string.Join(", ", requiredCols)));
-                warnings.MissingTables.Add(tableName);
+                foreach (string col in requiredCols) {
+                  warnings.Add(new GTFSWarning("Required column missing.") {
+                    Table = tableName,
+                    Field = col
+                  });
+                }
+                warnings.Add(new GTFSWarning("Couldn't import due to missing required columns.") {
+                  Table = tableName
+                });
               }
             }
 
@@ -167,7 +176,8 @@ namespace Nixill.GTFS.Parsing {
           }
           else {
             int c = 0;
-            List<string> rowWarns = new List<string>();
+            cmd.Parameters.Clear();
+            List<GTFSWarning> rowWarns = new List<GTFSWarning>();
             bool skipRow = false;
             string pimaryKey = "Row " + rows;
 
@@ -178,21 +188,26 @@ namespace Nixill.GTFS.Parsing {
 
               // Let's get the parameter value
               GTFSColumn col = usedCols[i].Value;
-              List<string> warns = new List<string>();
+              List<GTFSWarning> warns = new List<GTFSWarning>();
               object param = GTFSObjectParser.GetObject(col.Type, row[i], ref warns);
 
               // Add the parameter to the command
-              cmd.Parameters.AddWithValue("@p" + c, param);
+              cmd.Parameters.AddWithValue("@p" + c, param ?? DBNull.Value);
 
               // If there are any warnings, add them to the row list.
-              foreach (string warn in warns) {
-                rowWarns.Add(col.Name + " - " + warn);
+              foreach (GTFSWarning warn in warns) {
+                warn.Field = col.Name;
+                warn.Table = tableName;
+                rowWarns.Add(warn);
               }
 
               // If there are any required columns that have a null, let's drop the row.
               if (param == null && col.Required) {
                 skipRow = true;
-                rowWarns.Add(col.Name + " - Required but no value given.");
+                rowWarns.Add(new GTFSWarning("Required column with no valid value given.") {
+                  Table = tableName,
+                  Field = col.Name
+                });
               }
 
               // Use a primary key to identify the row.
@@ -205,8 +220,9 @@ namespace Nixill.GTFS.Parsing {
             }
 
             // Incorporate all the row's warnings into the table's warnings.
-            foreach (string warn in rowWarns) {
-              tableWarns.Add(primaryKey + " - " + warn);
+            foreach (GTFSWarning warn in rowWarns) {
+              warn.Record = primaryKey;
+              warnings.Add(warn);
             }
 
             // If we're not skipping the row, insert it now.
@@ -217,7 +233,10 @@ namespace Nixill.GTFS.Parsing {
                 populated = true;
               }
               catch (SqliteException ex) {
-                tableWarns.Add(primaryKey + " - SqliteException: " + ex);
+                warnings.Add(new GTFSWarning("SqliteException: " + ex) {
+                  Table = tableName,
+                  Record = primaryKey
+                });
               }
             }
           }
@@ -231,14 +250,11 @@ namespace Nixill.GTFS.Parsing {
       trans.Commit();
       trans.Dispose();
 
-      // Add the warnings to the Warnings object
-      warnings._TableWarnings.Add(tableName, tableWarns);
-
       // Lastly: Output whether or not the table has stuff in it.
       return populated;
     }
 
-    internal static bool CreateFeedInfoTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings) {
+    internal static bool CreateFeedInfoTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
       return CreateTable(
         conn: conn, zip: zip, warnings: warnings,
         tableName: "feed_info", required: false,
@@ -255,12 +271,12 @@ namespace Nixill.GTFS.Parsing {
         });
     }
 
-    internal static bool CreateAgencyTable(SqliteConnection conn, ZipArchive zip, GTFSWarnings warnings) {
+    internal static bool CreateAgencyTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
       if (!CreateTable(
         conn: conn, zip: zip, warnings: warnings,
         tableName: "agency", required: true,
         columns: new List<GTFSColumn> {
-          new GTFSColumn("agency_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL"),
+          new GTFSColumn("agency_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL", true, true),
           new GTFSColumn("agency_name", GTFSDataType.Text, "TEXT NOT NULL", true),
           new GTFSColumn("agency_url", GTFSDataType.Url, "TEXT"),
           new GTFSColumn("agency_timezone", GTFSDataType.Timezone, "TEXT"),
@@ -312,27 +328,90 @@ namespace Nixill.GTFS.Parsing {
 
       // If not all values were the same timezone...
       if (nullTimezone || multiTimezone) {
-        List<string> warns = warnings._TableWarnings["agency"];
-        // If some weren't specified...
-        if (nullTimezone) {
-          warns.Add("Agency timezones cannot be null.");
-        }
-        // If multiple were specified...
-        if (multiTimezone) {
-          warns.Add("All agencies must have the same timezone.");
+        // Find all the agencies we're changing
+        cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT agency_id, agency_timezone FROM agency WHERE agency_timezone != @tz;";
+        cmd.Parameters.AddWithValue("@tz", timezone);
+        cmd.Prepare();
+        reader = cmd.ExecuteReader();
+
+        // Log their old values
+        while (reader.Read()) {
+          string agencyID = GTFSObjectParser.GetID(reader["agency_id"]);
+          // We don't need to validate or use the actual zone at this
+          // point, so text should suffice.
+          string oldZone = GTFSObjectParser.GetText(reader["agency_timezone"]);
+
+          if (oldZone == null) {
+            oldZone = "null";
+          }
+
+          warnings.Add(new GTFSWarning("Timezone " + oldZone + " was changed to conform to the GTFS requirement that all agencies have the same zone.") {
+            Table = "agency",
+            Record = agencyID,
+            Field = "agency_timezone"
+          });
         }
 
-        // Either way...
+        cmd.Dispose();
+
+        // And then...
         cmd = conn.CreateCommand();
         cmd.CommandText = "UPDATE agency SET agency_timezone = @tz;";
         cmd.Parameters.AddWithValue("@tz", timezone);
         cmd.Prepare();
         cmd.ExecuteNonQuery();
         cmd.Dispose();
-
-        warns.Add("All timezones were set to " + timezone + ".");
       }
 
+      return true;
+    }
+
+    internal static bool CreateRoutesTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
+      if (!(CreateTable(conn: conn, zip: zip, warnings: warnings,
+      tableName: "routes", required: true, agencyIdColumn: true,
+      columns: new List<GTFSColumn> {
+        new GTFSColumn("route_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL", true, true),
+        new GTFSColumn("agency_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES agency(agency_id)"),
+        new GTFSColumn("route_short_name", GTFSDataType.Text, "TEXT"),
+        new GTFSColumn("route_long_name", GTFSDataType.Text, "TEXT"),
+        new GTFSColumn("route_desc", GTFSDataType.Text, "TEXT"),
+        new GTFSColumn("route_type", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_route_types", true),
+        new GTFSColumn("route_url", GTFSDataType.Url, "TEXT"),
+        new GTFSColumn("route_color", GTFSDataType.Color, "TEXT"),
+        new GTFSColumn("route_text_color", GTFSDataType.Color, "TEXT"),
+        new GTFSColumn("route_sort_order", GTFSDataType.NonNegativeInteger, "INTEGER"),
+        new GTFSColumn("continuous_pickup", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_pickup_drop_off DEFAULT 1"),
+        new GTFSColumn("continuous_drop_off", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_pickup_drop_off DEFAULT 1")
+      }))) {
+        throw new GTFSParseException("No routes were specified.");
+      }
+
+      SqliteCommand cmd = conn.CreateCommand();
+      cmd.CommandText = "SELECT route_id FROM routes WHERE route_short_name IS NULL AND route_long_name IS NULL;";
+      SqliteDataReader reader = cmd.ExecuteReader();
+      while (reader.Read()) {
+        warnings.Add(new GTFSWarning("No name specified (removed from table).") {
+          Table = "routes",
+          Record = GTFSObjectParser.GetID(reader["route_id"])
+        });
+      }
+      cmd.Dispose();
+
+      cmd = conn.CreateCommand();
+      cmd.CommandText = "DELETE FROM routes WHERE route_short_name IS NULL AND route_long_name IS NULL;";
+      cmd.ExecuteNonQuery();
+      cmd.Dispose();
+
+      // Now let's make sure we still have at least one route.
+      cmd = conn.CreateCommand();
+      cmd.CommandText = "SELECT route_id FROM routes;";
+      if (!cmd.ExecuteReader().HasRows) {
+        throw new GTFSParseException("No routes were specified that had either a route_short_name or route_long_name.");
+      }
+      cmd.Dispose();
+
+      // Lastly, return true.
       return true;
     }
   }

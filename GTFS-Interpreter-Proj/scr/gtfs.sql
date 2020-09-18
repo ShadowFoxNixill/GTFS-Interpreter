@@ -45,7 +45,6 @@ DROP TABLE IF EXISTS stops;
 DROP TABLE IF EXISTS fare_zones;
 DROP TABLE IF EXISTS levels;
 DROP TABLE IF EXISTS agency;
-DROP TABLE IF EXISTS enum_table_names;
 DROP TABLE IF EXISTS enum_pathway_mode;
 DROP TABLE IF EXISTS enum_transfer_type;
 DROP TABLE IF EXISTS enum_calendar_date;
@@ -140,19 +139,6 @@ INSERT INTO enum_pathway_mode VALUES
   (5, 'Elevator'),
   (6, 'Fare gate'),
   (7, 'Exit gate');
-
-CREATE TABLE enum_table_names (
-  enum_val TEXT PRIMARY KEY NOT NULL
-);
-INSERT INTO enum_table_names VALUES
-  ('agency'),
-  ('stops'),
-  ('routes'),
-  ('stop_times'),
-  ('feed_info'),
-  ('pathways'),
-  ('levels'),
-  ('attributions');
 
 -- Standard tables of a GTFS definition
 
@@ -328,7 +314,7 @@ CREATE TABLE feed_info (
 );
 
 CREATE TABLE translations (
-  table_name TEXT NOT NULL REFERENCES enum_table_names,
+  table_name TEXT NOT NULL,
   field_name TEXT NOT NULL,
   "language" TEXT NOT NULL,
   translation TEXT NOT NULL,
@@ -510,19 +496,6 @@ INSERT INTO enum_exbp_activation_time VALUES
   (2, 'Activated on purchase'),
   (3, 'First fare after purchase'),
   (4, 'When quantity is exhausted');
-
-CREATE TABLE enum_exbp_days_of_week (
-  enum_val INTEGER PRIMARY KEY,
-  enum_prose TEXT NOT NULL
-);
-INSERT INTO enum_exbp_days_of_week VALUES
-  (1, 'Monday'),
-  (2, 'Tuesday'),
-  (3, 'Wednesday'),
-  (4, 'Thursday'),
-  (5, 'Friday'),
-  (6, 'Saturday'),
-  (7, 'Sunday');
 
 CREATE TABLE enum_exbp_timer_activation (
   enum_val INTEGER PRIMARY KEY,
