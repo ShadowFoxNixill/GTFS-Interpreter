@@ -1,0 +1,36 @@
++ CREATE TABLE agency (
++ CREATE TABLE levels (
+V CREATE TABLE fare_zones (zone_id TEXT PRIMARY KEY);
+  CREATE TABLE stops (
++ CREATE TABLE routes (
+V CREATE TABLE shape_ids (shape_id TEXT PRIMARY KEY NOT NULL);
+  CREATE TABLE shapes (
+  CREATE TABLE calendar (
+  CREATE TABLE trips (
+  CREATE TABLE stop_times (
+  CREATE TABLE calendar_dates (
+  CREATE TABLE fare_attributes (
+  CREATE TABLE fare_rules (
+  CREATE TABLE frequencies (
+  CREATE TABLE transfers (
+  CREATE TABLE pathways (
++ CREATE TABLE feed_info (
+  CREATE TABLE translations (
+  CREATE TABLE attributions (
+  CREATE TABLE timetables (
+  CREATE TABLE timetable_columns (
+  CREATE TABLE timetable_column_stops (
+  CREATE TABLE timetable_rows (
+  CREATE TABLE timetable_notes (
+  CREATE TABLE fare_demographics (
+  CREATE TABLE fare_demographics_properties (
+  CREATE TABLE fare_demographics_prices (
+  CREATE TABLE bulk_passes (
+  CREATE TABLE bulk_pass_fares (
+  CREATE TABLE bulk_pass_constraints (
+V CREATE TABLE bulk_pass_purchase_group_ids (location_group_id TEXT PRIMARY KEY NOT NULL);
+  CREATE TABLE bulk_pass_purchase_locations (
+  CREATE TABLE bulk_pass_purchase_groups (
+  CREATE TABLE bulk_pass_vehicle_purchase (
+  CREATE TABLE bulk_pass_demographics (
+  CREATE TABLE prepaid_fares (

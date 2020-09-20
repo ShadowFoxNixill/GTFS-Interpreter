@@ -97,6 +97,8 @@ namespace Nixill.GTFS.Parsing {
       cmd.ExecuteNonQuery();
       cmd.Dispose();
 
+      GTFSTriggers.CreateTriggers(tableName, conn);
+
       // Are we populating this table?
       bool populated = false;
 
@@ -289,80 +291,7 @@ namespace Nixill.GTFS.Parsing {
         throw new GTFSParseException("No agencies were specified.");
       }
 
-      // So the thing about the agency table is that a timezone has to be
-      // specified by at least one agency, and all of them have to match.
-      // Our error handling will be as follows:
-      // • No timezone specified: Fail to load.
-      // • Some timezones missing: Warn, then fill in default.
-      // • Multiple timezones specified: Warn, then select one for all
-      //   agencies.
-      SqliteCommand cmd = conn.CreateCommand();
-      cmd.CommandText = "SELECT DISTINCT agency_timezone FROM agency;";
-      SqliteDataReader reader = cmd.ExecuteReader();
-
-      // We can guarantee there will be at least one result, because this
-      // point in the code wouldn't be reached if there were nothing.
-      bool nullTimezone = false;
-      bool multiTimezone = false;
-      string timezone = null;
-      while (reader.Read()) {
-        var tz = reader["agency_timezone"];
-        if (tz is DBNull) { nullTimezone = true; }
-        else {
-          string tzone = (string)tz;
-          if (timezone == null) {
-            timezone = tzone;
-          }
-          else {
-            multiTimezone = true;
-          }
-        }
-      }
-
-      cmd.Dispose();
-
-      // If no timezone was specified at all...
-      if (timezone == null) {
-        throw new GTFSParseException("agency_timezone cannot be null for all agencies.");
-      }
-
-      // If not all values were the same timezone...
-      if (nullTimezone || multiTimezone) {
-        // Find all the agencies we're changing
-        cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT agency_id, agency_timezone FROM agency WHERE agency_timezone != @tz;";
-        cmd.Parameters.AddWithValue("@tz", timezone);
-        cmd.Prepare();
-        reader = cmd.ExecuteReader();
-
-        // Log their old values
-        while (reader.Read()) {
-          string agencyID = GTFSObjectParser.GetID(reader["agency_id"]);
-          // We don't need to validate or use the actual zone at this
-          // point, so text should suffice.
-          string oldZone = GTFSObjectParser.GetText(reader["agency_timezone"]);
-
-          if (oldZone == null) {
-            oldZone = "null";
-          }
-
-          warnings.Add(new GTFSWarning("Timezone " + oldZone + " was changed to conform to the GTFS requirement that all agencies have the same zone.") {
-            Table = "agency",
-            Record = agencyID,
-            Field = "agency_timezone"
-          });
-        }
-
-        cmd.Dispose();
-
-        // And then...
-        cmd = conn.CreateCommand();
-        cmd.CommandText = "UPDATE agency SET agency_timezone = @tz;";
-        cmd.Parameters.AddWithValue("@tz", timezone);
-        cmd.Prepare();
-        cmd.ExecuteNonQuery();
-        cmd.Dispose();
-      }
+      GTFSValidation.ValidateAgency(conn, warnings);
 
       return true;
     }
@@ -372,7 +301,7 @@ namespace Nixill.GTFS.Parsing {
       tableName: "routes", required: true, agencyIdColumn: true,
       columns: new List<GTFSColumn> {
         new GTFSColumn("route_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL", true, true),
-        new GTFSColumn("agency_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES agency(agency_id)"),
+        new GTFSColumn("agency_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES agency"),
         new GTFSColumn("route_short_name", GTFSDataType.Text, "TEXT"),
         new GTFSColumn("route_long_name", GTFSDataType.Text, "TEXT"),
         new GTFSColumn("route_desc", GTFSDataType.Text, "TEXT"),
@@ -413,6 +342,37 @@ namespace Nixill.GTFS.Parsing {
 
       // Lastly, return true.
       return true;
+    }
+
+    internal static bool CreateLevelsTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(conn: conn, zip: zip, warnings: warnings,
+        tableName: "levels", required: false, columns: new List<GTFSColumn>() {
+          new GTFSColumn("level_id", GTFSDataType.ID, "TEXT NOT NULL PRIMARY KEY", true, true),
+          new GTFSColumn("level_index", GTFSDataType.Float, "REAL NOT NULL", true),
+          new GTFSColumn("level_name", GTFSDataType.Text, "TEXT")
+        });
+    }
+
+    internal static bool CreateStopsTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(conn: conn, zip: zip, warnings: warnings,
+        tableName: "stops", required: true, virtualEntityTable: "fare_zones",
+        virtualEntityColumn: new GTFSColumn("zone_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL"),
+        columns: new List<GTFSColumn>() {
+          new GTFSColumn("stop_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL", true, true),
+          new GTFSColumn("stop_code", GTFSDataType.Text, "TEXT"),
+          new GTFSColumn("stop_name", GTFSDataType.Text, "TEXT"),
+          new GTFSColumn("stop_desc", GTFSDataType.Text, "TEXT"),
+          new GTFSColumn("stop_lat", GTFSDataType.Latitude, "REAL"),
+          new GTFSColumn("stop_lon", GTFSDataType.Longitude, "REAL"),
+          new GTFSColumn("zone_id", GTFSDataType.ID, "TEXT REFERENCES fare_zones"),
+          new GTFSColumn("stop_url", GTFSDataType.Url, "TEXT"),
+          new GTFSColumn("location_type", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_location_type DEFAULT 0"),
+          new GTFSColumn("parent_station", GTFSDataType.ID, "TEXT REFERENCES stops"),
+          new GTFSColumn("stop_timezone", GTFSDataType.Timezone, "TEXT"),
+          new GTFSColumn("wheelchair_boarding", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0"),
+          new GTFSColumn("level_id", GTFSDataType.ID, "TEXT REFERENCES levels"),
+          new GTFSColumn("platform_code", GTFSDataType.Text, "TEXT")
+        });
     }
   }
 }

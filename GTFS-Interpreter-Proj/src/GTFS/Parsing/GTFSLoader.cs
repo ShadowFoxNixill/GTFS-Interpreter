@@ -35,9 +35,10 @@ namespace Nixill.GTFS.Parsing {
 
       // Now start actually creating tables.
       GTFSEnumerableMaker.Make(conn);
-      if (GTFSMaker.CreateFeedInfoTable(conn, file, warnings)) files.Add("feed_info");
       if (GTFSMaker.CreateAgencyTable(conn, file, warnings)) files.Add("agency");
+      if (GTFSMaker.CreateLevelsTable(conn, file, warnings)) files.Add("levels");
       if (GTFSMaker.CreateRoutesTable(conn, file, warnings)) files.Add("routes");
+      if (GTFSMaker.CreateFeedInfoTable(conn, file, warnings)) files.Add("feed_info");
 
       // And output! :D
       return ret;

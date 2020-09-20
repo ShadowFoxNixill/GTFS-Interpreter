@@ -142,6 +142,7 @@ INSERT INTO enum_pathway_mode VALUES
 
 -- Standard tables of a GTFS definition
 
+-- Imported
 CREATE TABLE agency (
   agency_id TEXT PRIMARY KEY NOT NULL,
   agency_name TEXT NOT NULL,
@@ -178,6 +179,7 @@ CREATE TABLE stops (
   platform_code TEXT
 );
 
+-- Imported
 CREATE TABLE routes (
   route_id TEXT PRIMARY KEY NOT NULL,
   agency_id TEXT NOT NULL REFERENCES agency,

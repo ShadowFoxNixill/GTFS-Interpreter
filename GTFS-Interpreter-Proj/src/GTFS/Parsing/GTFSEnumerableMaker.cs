@@ -183,6 +183,13 @@ INSERT INTO enum_expf_exception_type VALUES
   (2, 'Fare is paid at a later stop on the route.'),
   (3, 'Fare does not apply (use another)'),
   (4, 'Fare does not need to be paid (is free)');
+
+CREATE TABLE gtfs_warnings (
+  warn_message TEXT NOT NULL,
+  warn_table TEXT,
+  warn_field TEXT,
+  warn_record TEXT
+);
 ";
       cmd.ExecuteNonQuery();
     }
