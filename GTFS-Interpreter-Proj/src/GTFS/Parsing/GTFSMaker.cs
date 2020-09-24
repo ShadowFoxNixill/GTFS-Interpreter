@@ -235,10 +235,12 @@ namespace Nixill.GTFS.Parsing {
                 populated = true;
               }
               catch (SqliteException ex) {
-                warnings.Add(new GTFSWarning("SqliteException: " + ex) {
-                  Table = tableName,
-                  Record = primaryKey
-                });
+                if (!ex.Message.StartsWith("TRIGGER - ")) {
+                  warnings.Add(new GTFSWarning("SqliteException: " + ex) {
+                    Table = tableName,
+                    Record = primaryKey
+                  });
+                }
               }
             }
           }
@@ -373,6 +375,24 @@ namespace Nixill.GTFS.Parsing {
           new GTFSColumn("level_id", GTFSDataType.ID, "TEXT REFERENCES levels"),
           new GTFSColumn("platform_code", GTFSDataType.Text, "TEXT")
         });
+    }
+
+    internal static void CreateWarningsTable(SqliteConnection conn, List<GTFSWarning> warnings) {
+      SqliteCommand cmd = conn.CreateCommand();
+      cmd.CommandText = @"INSERT INTO gtfs_warnings (warn_message, warn_table, warn_field, warn_record) VALUES (@msg, @tbl, @fld, @rec);";
+
+      foreach (GTFSWarning warn in warnings) {
+        cmd.Parameters.AddWithValue("@msg", warn.Message);
+        cmd.Parameters.AddWithValue("@tbl", warn.Table);
+        cmd.Parameters.AddWithValue("@fld", warn.Field);
+        cmd.Parameters.AddWithValue("@rec", warn.Record);
+
+        cmd.ExecuteNonQuery();
+
+        cmd.Parameters.Clear();
+      }
+
+      cmd.Dispose();
     }
   }
 }
