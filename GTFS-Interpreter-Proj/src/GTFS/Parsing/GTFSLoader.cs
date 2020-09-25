@@ -38,6 +38,8 @@ namespace Nixill.GTFS.Parsing {
       if (GTFSMaker.CreateAgencyTable(conn, file, warnings)) files.Add("agency");
       if (GTFSMaker.CreateLevelsTable(conn, file, warnings)) files.Add("levels");
       if (GTFSMaker.CreateRoutesTable(conn, file, warnings)) files.Add("routes");
+      if (GTFSMaker.CreateStopsTable(conn, file, warnings)) files.Add("stops");
+      if (GTFSMaker.CreateShapesTable(conn, file, warnings)) files.Add("shapes");
       if (GTFSMaker.CreateFeedInfoTable(conn, file, warnings)) files.Add("feed_info");
       GTFSMaker.CreateWarningsTable(conn, warnings);
 

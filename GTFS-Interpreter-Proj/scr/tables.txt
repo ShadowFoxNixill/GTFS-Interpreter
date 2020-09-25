@@ -1,10 +1,11 @@
 + CREATE TABLE agency (
 + CREATE TABLE levels (
 V CREATE TABLE fare_zones (zone_id TEXT PRIMARY KEY);
-  CREATE TABLE stops (
++ CREATE TABLE stops (
 + CREATE TABLE routes (
 V CREATE TABLE shape_ids (shape_id TEXT PRIMARY KEY NOT NULL);
-  CREATE TABLE shapes (
++ CREATE TABLE shapes (
+  CREATE TABLE calendar_services (service_id TEXT PRIMARY KEY NOT NULL);
   CREATE TABLE calendar (
   CREATE TABLE trips (
   CREATE TABLE stop_times (

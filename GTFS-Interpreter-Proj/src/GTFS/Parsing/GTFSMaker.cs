@@ -39,17 +39,20 @@ namespace Nixill.GTFS.Parsing {
       // Let's open a transaction and make a command.
       SqliteTransaction trans = conn.BeginTransaction();
       SqliteCommand cmd = conn.CreateCommand();
+      SqliteCommand veCmd = conn.CreateCommand();
 
       // First, if there's a virtual entity table, we need to make that first.
       string virtualEntityColumnName = null;
       if (virtualEntityTable != null) {
-        cmd.CommandText = "CREATE TABLE " + virtualEntityTable + " ( " + virtualEntityColumn.Value.ColumnDef + "} );";
+        cmd.CommandText = "CREATE TABLE " + virtualEntityTable + " ( " + virtualEntityColumn.Value.Name + " TEXT PRIMARY KEY NOT NULL);";
         cmd.ExecuteNonQuery();
         cmd.Dispose();
         // This is at the bottom because we're replacing it.
         cmd = conn.CreateCommand();
         // And we'll save the name just to make things easier.
         virtualEntityColumnName = virtualEntityColumn.Value.Name;
+        // Also let's not forget to populate the table!
+        veCmd.CommandText = "INSERT OR IGNORE INTO " + virtualEntityTable + " VALUES (@p);";
       }
 
       // Now we need to figure out the main table creation command. While
@@ -148,10 +151,17 @@ namespace Nixill.GTFS.Parsing {
 
             // If we don't have all the required columns, we need to stop.
             if (requiredCols.Count != 0) {
+              // Garbage collection
+              cmd.Dispose();
+              veCmd.Dispose();
+              trans.Commit();
+              trans.Dispose();
+
               // Throw an error if the table is required.
               if (required) {
                 throw new GTFSParseException("Required table " + tableName + ".txt is missing required column(s) " + string.Join(", ", requiredCols));
               }
+
               // Otherwise just log the warning and quit parsing this table.
               else {
                 foreach (string col in requiredCols) {
@@ -163,6 +173,7 @@ namespace Nixill.GTFS.Parsing {
                 warnings.Add(new GTFSWarning("Couldn't import due to missing required columns.") {
                   Table = tableName
                 });
+                return false;
               }
             }
 
@@ -182,6 +193,7 @@ namespace Nixill.GTFS.Parsing {
             List<GTFSWarning> rowWarns = new List<GTFSWarning>();
             bool skipRow = false;
             string pimaryKey = "Row " + rows;
+            bool pkPopulated = false;
 
             // Iterate through the columns
             for (int i = 0; i < row.Count && i < usedCols.Count; i++) {
@@ -214,7 +226,20 @@ namespace Nixill.GTFS.Parsing {
 
               // Use a primary key to identify the row.
               if (param != null && col.PrimaryKey) {
-                primaryKey = row[i];
+                if (pkPopulated) {
+                  primaryKey += " / " + row[i];
+                }
+                else {
+                  primaryKey = row[i];
+                }
+              }
+
+              // If this column is the virtual entity column, let's get its value ready too.
+              if (col.Name == virtualEntityColumnName && param != null) {
+                veCmd.Parameters.Clear();
+                veCmd.Parameters.AddWithValue("@p", param);
+                veCmd.Prepare();
+                veCmd.ExecuteNonQuery();
               }
 
               // DON'T FORGET TO ACTUALLY INCREMENT THE USED COLUMN COUNTER YOU DUMBASS
@@ -249,6 +274,7 @@ namespace Nixill.GTFS.Parsing {
       }
 
       cmd.Dispose();
+      veCmd.Dispose();
 
       // End the transaction too
       trans.Commit();
@@ -377,15 +403,30 @@ namespace Nixill.GTFS.Parsing {
         });
     }
 
+    internal static bool CreateShapesTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(conn: conn, zip: zip, warnings: warnings,
+        tableName: "shapes", required: false, virtualEntityTable: "shape_ids",
+        virtualEntityColumn: new GTFSColumn("shape_id", GTFSDataType.ID, ""),
+        columns: new List<GTFSColumn>() {
+          new GTFSColumn("shape_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES shape_ids", true, true),
+          new GTFSColumn("shape_pt_sequence", GTFSDataType.ID, "INTEGER NOT NULL", true, true),
+          new GTFSColumn("shape_pt_lat", GTFSDataType.Latitude, "REAL NOT NULL", true),
+          new GTFSColumn("shape_pt_lon", GTFSDataType.Longitude, "REAL NOT NULL", true),
+          new GTFSColumn("shape_dist_traveled", GTFSDataType.NonNegativeFloat, "REAL")
+        }, primaryKey: "shape_id, shape_pt_lat");
+    }
+
     internal static void CreateWarningsTable(SqliteConnection conn, List<GTFSWarning> warnings) {
       SqliteCommand cmd = conn.CreateCommand();
       cmd.CommandText = @"INSERT INTO gtfs_warnings (warn_message, warn_table, warn_field, warn_record) VALUES (@msg, @tbl, @fld, @rec);";
 
       foreach (GTFSWarning warn in warnings) {
         cmd.Parameters.AddWithValue("@msg", warn.Message);
-        cmd.Parameters.AddWithValue("@tbl", warn.Table);
-        cmd.Parameters.AddWithValue("@fld", warn.Field);
-        cmd.Parameters.AddWithValue("@rec", warn.Record);
+        cmd.Parameters.AddWithValue("@tbl", (object)warn.Table ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@fld", (object)warn.Field ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@rec", (object)warn.Record ?? DBNull.Value);
+
+        cmd.Prepare();
 
         cmd.ExecuteNonQuery();
 

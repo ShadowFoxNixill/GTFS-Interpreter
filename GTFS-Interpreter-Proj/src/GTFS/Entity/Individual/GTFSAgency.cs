@@ -3,37 +3,24 @@ using Microsoft.Data.Sqlite;
 using NodaTime;
 using System.Collections.Generic;
 using Nixill.GTFS.Parsing;
+using Nixill.SQLite;
 
 namespace Nixill.GTFS.Entity {
   /// <summary>
   /// Represents a single transit agency defined in a GTFS file.
   /// </summary>
-  public class GTFSAgency {
-    private SqliteConnection Conn;
-    private GTFSFile File;
+  public sealed class GTFSAgency : GTFSEntity {
+    internal override string TableName => "agency";
+    internal override string TableIDCol => "agency_id";
 
-    internal GTFSAgency(SqliteConnection conn, GTFSFile file) {
-      Conn = conn;
-      File = file;
-    }
-
-    /// <summary>
-    /// The value of <c>agency.agency_id</c> for this agency.
-    /// <para/>
-    /// Definition: Identifies a transit brand, which is often synonymous
-    /// with a transit agency.
-    /// <para/>
-    /// If using a single-agency GTFS file that doesn't specify the ID,
-    /// the parser will assign the ID of "<c>agency</c>" to the agency.
-    /// </summary>
-    public string ID { get; internal set; }
+    internal GTFSAgency(SqliteConnection conn, string id) : base(conn, id) { }
 
     /// <summary>
     /// The value of <c>agency.agency_name</c> for this agency.
     /// <para/>
     /// Definition: Full name of the transit agency.
     /// </summary>
-    public string Name { get; internal set; }
+    public string Name => GTFSObjectParser.GetText(Conn.GetResult($"SELECT agency_name FROM agency WHERE agency_id = @p;", ID));
 
     /// <summary>
     /// The value of <c>agency.agency_url</c> for this agency.
@@ -44,7 +31,7 @@ namespace Nixill.GTFS.Entity {
     /// The GTFS spec mandates that all agencies have a url. However, this
     /// parser allows agencies to not have URLs.
     /// </remarks>
-    public Uri URL { get; internal set; }
+    public Uri URL => GTFSObjectParser.GetUrl(Conn.GetResult($"SELECT agency_url FROM agency WHERE agency_id = @p;", ID));
 
     /// <summary>
     /// The value of <c>agency.agency_timezone</c> for this agency.
@@ -56,14 +43,14 @@ namespace Nixill.GTFS.Entity {
     /// means that the value here might not match what was entered in the
     /// <c>agency.txt</c> file.
     /// </remarks>
-    public DateTimeZone Timezone { get; internal set; }
+    public DateTimeZone Timezone => GTFSObjectParser.GetTimezone(Conn.GetResult($"SELECT agency_timezone FROM agency WHERE agency_id = @p;", ID));
 
     /// <summary>
     /// The value of <c>agency.agency_lang</c> for this agency.
     /// <para/>
     /// Definition: Primary language used by this transit agency.
     /// </summary>
-    public string Lang { get; internal set; }
+    public string Lang => GTFSObjectParser.GetLanguage(Conn.GetResult($"SELECT agency_lang FROM agency WHERE agency_id = @p;", ID));
 
     /// <summary>
     /// The value of <c>agency.agency_phone</c> for this agency.
@@ -75,7 +62,7 @@ namespace Nixill.GTFS.Entity {
     /// (for example, TriMet's "<c>503-238-RIDE</c>") is permitted, but
     /// the field must not contain any other descriptive text.
     /// </summary>
-    public string Phone { get; internal set; }
+    public string Phone => GTFSObjectParser.GetPhone(Conn.GetResult($"SELECT agency_phone FROM agency WHERE agency_id = @p;", ID));
 
     /// <summary>
     /// The value of <c>agency.agency_fare_url</c> for this agency.
@@ -83,7 +70,7 @@ namespace Nixill.GTFS.Entity {
     /// Definition: URL of a web page that allows a rider to purchase
     /// tickets or other fare instruments for that agency online.
     /// </summary>
-    public Uri FareURL { get; internal set; }
+    public Uri FareURL => GTFSObjectParser.GetUrl(Conn.GetResult($"SELECT agency_fare_url FROM agency WHERE agency_id = @p;", ID));
 
     /// <summary>
     /// The value of <c>agency.agency_email</c> for this agency.
@@ -93,40 +80,20 @@ namespace Nixill.GTFS.Entity {
     /// contact point where transit riders can reach a customer service
     /// representative at the agency.
     /// </summary>
-    public string Email { get; internal set; }
+    public string Email => GTFSObjectParser.GetEmail(Conn.GetResult($"SELECT agency_email FROM agency WHERE agency_id = @p;", ID));
 
-    private IList<GTFSRoute> _Routes;
     /// <summary>
     /// A list of all the routes operated by this agency.
     /// </summary>
     public IList<GTFSRoute> Routes {
       get {
-        // If we've already cached it, just use that.
-        if (_Routes != null) {
-          return _Routes;
+        List<GTFSRoute> ret = new List<GTFSRoute>();
+
+        foreach (object obj in Conn.GetResultList($"SELECT route_id FROM routes WHERE agency_id = @p;", ID)) {
+          ret.Add(new GTFSRoute(Conn, GTFSObjectParser.GetID(obj)));
         }
 
-        // Otherwise, we'll need to remake it from scratch.
-        List<GTFSRoute> routes = new List<GTFSRoute>();
-
-        SqliteCommand cmd = Conn.CreateCommand();
-        cmd.CommandText = "SELECT route_id FROM routes WHERE agency_id = @id ORDER BY route_sort_order;";
-        cmd.Parameters.AddWithValue("@id", ID);
-        cmd.Prepare();
-        SqliteDataReader reader = cmd.ExecuteReader();
-
-        while (reader.Read()) {
-          string routeID = GTFSObjectParser.GetID(reader["route_id"]);
-          routes.Add(File.GetRouteById(routeID));
-        }
-
-        cmd.Dispose();
-
-        // Store an immutable list
-        _Routes = routes.AsReadOnly();
-
-        // And return it
-        return _Routes;
+        return ret.AsReadOnly();
       }
     }
   }
