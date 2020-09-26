@@ -40,6 +40,8 @@ namespace Nixill.GTFS.Parsing {
       if (GTFSMaker.CreateRoutesTable(conn, file, warnings)) files.Add("routes");
       if (GTFSMaker.CreateStopsTable(conn, file, warnings)) files.Add("stops");
       if (GTFSMaker.CreateShapesTable(conn, file, warnings)) files.Add("shapes");
+      if (GTFSMaker.CreateCalendarTable(conn, file, warnings)) files.Add("calendar");
+      if (GTFSMaker.CreateCalendarDatesTable(conn, file, warnings)) files.Add("calendar_dates");
       if (GTFSMaker.CreateFeedInfoTable(conn, file, warnings)) files.Add("feed_info");
       GTFSMaker.CreateWarningsTable(conn, warnings);
 

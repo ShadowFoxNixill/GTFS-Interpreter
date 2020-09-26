@@ -44,7 +44,7 @@ namespace Nixill.GTFS.Parsing {
       // First, if there's a virtual entity table, we need to make that first.
       string virtualEntityColumnName = null;
       if (virtualEntityTable != null) {
-        cmd.CommandText = "CREATE TABLE " + virtualEntityTable + " ( " + virtualEntityColumn.Value.Name + " TEXT PRIMARY KEY NOT NULL);";
+        cmd.CommandText = "CREATE TABLE IF NOT EXISTS " + virtualEntityTable + " ( " + virtualEntityColumn.Value.Name + " TEXT PRIMARY KEY NOT NULL);";
         cmd.ExecuteNonQuery();
         cmd.Dispose();
         // This is at the bottom because we're replacing it.
@@ -414,6 +414,37 @@ namespace Nixill.GTFS.Parsing {
           new GTFSColumn("shape_pt_lon", GTFSDataType.Longitude, "REAL NOT NULL", true),
           new GTFSColumn("shape_dist_traveled", GTFSDataType.NonNegativeFloat, "REAL")
         }, primaryKey: "shape_id, shape_pt_lat");
+    }
+
+    internal static bool CreateCalendarTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(conn: conn, zip: zip, warnings: warnings,
+        tableName: "calendar", required: false, virtualEntityTable: "calendar_services",
+        virtualEntityColumn: new GTFSColumn("service_id", GTFSDataType.ID, ""),
+        columns: new List<GTFSColumn>() {
+          new GTFSColumn("service_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL REFERENCES calendar_services", true, true),
+          new GTFSColumn("start_date", GTFSDataType.Date, "TEXT NOT NULL", true),
+          new GTFSColumn("end_date", GTFSDataType.Date, "TEXT NOT NULL", true),
+          new GTFSColumn("monday", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_boolean", true),
+          new GTFSColumn("tuesday", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_boolean", true),
+          new GTFSColumn("wednesday", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_boolean", true),
+          new GTFSColumn("thursday", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_boolean", true),
+          new GTFSColumn("friday", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_boolean", true),
+          new GTFSColumn("saturday", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_boolean", true),
+          new GTFSColumn("sunday", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_boolean", true),
+        }
+      );
+    }
+
+    internal static bool CreateCalendarDatesTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(conn: conn, zip: zip, warnings: warnings,
+        tableName: "calendar_dates", required: false, virtualEntityTable: "calendar_services",
+        virtualEntityColumn: new GTFSColumn("service_id", GTFSDataType.ID, ""),
+        columns: new List<GTFSColumn>() {
+          new GTFSColumn("service_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES calendar_services", true, true),
+          new GTFSColumn("date", GTFSDataType.Date, "TEXT NOT NULL", true, true),
+          new GTFSColumn("exception_type", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_calendar_date", true)
+        }, primaryKey: "service_id, date"
+      );
     }
 
     internal static void CreateWarningsTable(SqliteConnection conn, List<GTFSWarning> warnings) {

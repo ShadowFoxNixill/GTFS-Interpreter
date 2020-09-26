@@ -3,6 +3,8 @@ using System;
 using Nixill.GTFS.Entity;
 using Nixill.GTFS.Parsing;
 using Nixill.GTFS.Misc;
+using NodaTime.Text;
+using NodaTime;
 
 namespace Nixill.Testing {
   public class GTFSReaderTest {
@@ -83,6 +85,34 @@ namespace Nixill.Testing {
           count++;
         }
       }
+
+      count = 0;
+
+      Console.WriteLine();
+
+      IDictionary<string, GTFSCalendar> calendars = file.Calendars;
+      LocalDatePattern iso = LocalDatePattern.Iso;
+      LocalDate today = SystemClock.Instance.GetCurrentInstant().InZone(DateTimeZoneProviders.Tzdb.GetSystemDefault()).LocalDateTime.Date;
+      Console.WriteLine("Today is " + iso.Format(today));
+      Console.WriteLine("Calendars:");
+      foreach (GTFSCalendar calendar in calendars.Values) {
+        if (count == 10) {
+          Console.WriteLine("... and " + (calendars.Count - 10) + " more.");
+          break;
+        }
+        else {
+          Console.Write(calendar.ID + ": ");
+          if (calendar.IsActive(today)) {
+            Console.WriteLine("Active today");
+          }
+          else {
+            Console.WriteLine("Inactive today");
+          }
+          count++;
+        }
+      }
+
+      count = 0;
 
       file.Dispose();
     }

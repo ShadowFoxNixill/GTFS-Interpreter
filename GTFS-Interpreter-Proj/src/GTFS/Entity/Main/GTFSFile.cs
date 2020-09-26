@@ -118,6 +118,23 @@ namespace Nixill.GTFS.Entity {
       }
     }
 
+    /// <value>
+    /// A read-only dictionary of all the calendars in the GTFS. The keys
+    /// are the calendars' IDs.
+    /// </value>
+    public IDictionary<string, GTFSCalendar> Calendars {
+      get {
+        Dictionary<string, GTFSCalendar> ret = new Dictionary<string, GTFSCalendar>();
+
+        foreach (object obj in Conn.GetResultList("SELECT service_id FROM calendar_services;")) {
+          string id = GTFSObjectParser.GetID(obj);
+          ret.Add(id, new GTFSCalendar(Conn, id));
+        }
+
+        return new ReadOnlyDictionary<string, GTFSCalendar>(ret);
+      }
+    }
+
     /// <summary>
     /// Disposes this <c>GTFSFile</c>, closing its internal database
     /// connection.
@@ -229,6 +246,20 @@ namespace Nixill.GTFS.Entity {
     public GTFSShape GetShapeById(string shapeID) {
       if (Conn.GetResult("SELECT shape_id FROM shape_ids WHERE shape_id = @p;", shapeID) != null) {
         return new GTFSShape(Conn, shapeID);
+      }
+      else {
+        return null;
+      }
+    }
+
+    /// <summary>
+    /// Returns the <c>GTFSCalendar</c> defined by the given ID. If there
+    /// is no such calendar, returns <c>null</c>.
+    /// </summary>
+    /// <param name="calendarID">The ID to retrieve.</param>
+    public GTFSCalendar GetCalendarById(string calendarID) {
+      if (Conn.GetResult("SELECT service_id FROM calendar_services WHERE service_id = @p;", calendarID) != null) {
+        return new GTFSCalendar(Conn, calendarID);
       }
       else {
         return null;
