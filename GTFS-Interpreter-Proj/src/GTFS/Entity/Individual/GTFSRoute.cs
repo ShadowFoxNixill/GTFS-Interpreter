@@ -12,17 +12,18 @@ namespace Nixill.GTFS.Entity {
 
     internal GTFSRoute(SqliteConnection conn, string id) : base(conn, id) { }
 
-    public string AgencyID => GTFSObjectParser.GetID(Conn.GetResult("SELECT agency_id FROM routes WHERE route_id = @p;", ID));
+    public string AgencyID => GTFSObjectParser.GetID(Select("agency_id"));
+    public string ShortName => GTFSObjectParser.GetText(Select("route_short_name"));
+    public string LongName => GTFSObjectParser.GetText(Select("route_long_name"));
+    public string Desc => GTFSObjectParser.GetText(Select("route_desc"));
+    public GTFSRouteType RouteType => (GTFSRouteType)GTFSObjectParser.GetEnum(Select("route_type"));
+    public Uri URL => GTFSObjectParser.GetUrl(Select("route_url"));
+    public Color? Color => GTFSObjectParser.GetColor(Select("route_color"));
+    public Color? TextColor => GTFSObjectParser.GetColor(Select("route_text_color"));
+    public int? SortOrder => GTFSObjectParser.GetInteger(Select("route_sort_order"));
+    public GTFSPickupDropoff ContinuousPickup => (GTFSPickupDropoff)GTFSObjectParser.GetEnum(Select("continuous_pickup"));
+    public GTFSPickupDropoff ContinuousDropOff => (GTFSPickupDropoff)GTFSObjectParser.GetEnum(Select("continuous_drop_off"));
+
     public GTFSAgency Agency => new GTFSAgency(Conn, AgencyID);
-    public string ShortName => GTFSObjectParser.GetText(Conn.GetResult("SELECT route_short_name FROM routes WHERE route_id = @p;", ID));
-    public string LongName => GTFSObjectParser.GetText(Conn.GetResult("SELECT route_long_name FROM routes WHERE route_id = @p;", ID));
-    public string Desc => GTFSObjectParser.GetText(Conn.GetResult("SELECT route_desc FROM routes WHERE route_id = @p;", ID));
-    public GTFSRouteType RouteType => (GTFSRouteType)GTFSObjectParser.GetEnum(Conn.GetResult("SELECT route_type FROM routes WHERE route_id = @p;", ID));
-    public Uri URL => GTFSObjectParser.GetUrl(Conn.GetResult("SELECT route_url FROM routes WHERE route_id = @p;", ID));
-    public Color? Color => GTFSObjectParser.GetColor(Conn.GetResult("SELECT route_color FROM routes WHERE route_id = @p;", ID));
-    public Color? TextColor => GTFSObjectParser.GetColor(Conn.GetResult("SELECT route_text_color FROM routes WHERE route_id = @p;", ID));
-    public int? SortOrder => GTFSObjectParser.GetInteger(Conn.GetResult("SELECT route_sort_order FROM routes WHERE route_id = @p;", ID));
-    public GTFSPickupDropoff ContinuousPickup => (GTFSPickupDropoff)GTFSObjectParser.GetEnum(Conn.GetResult("SELECT continuous_pickup FROM routes WHERE route_id = @p;", ID));
-    public GTFSPickupDropoff ContinuousDropOff => (GTFSPickupDropoff)GTFSObjectParser.GetEnum(Conn.GetResult("SELECT continuous_drop_off FROM routes WHERE route_id = @p;", ID));
   }
 }

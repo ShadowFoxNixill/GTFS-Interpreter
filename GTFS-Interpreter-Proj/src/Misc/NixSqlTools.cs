@@ -12,12 +12,14 @@ namespace Nixill.SQLite {
     /// <para/>
     /// If the query returns no rows, <c>null</c> is returned.
     /// </summary>
-    public static object GetResult(this SqliteConnection conn, string query, string param = null) {
+    public static object GetResult(this SqliteConnection conn, string query, params object[] pars) {
       using SqliteCommand cmd = conn.CreateCommand();
       cmd.CommandText = query;
-      if (param != null) {
-        cmd.Parameters.AddWithValue("@p", param);
-        cmd.Prepare();
+      if (pars != null) {
+        for (int i = 0; i < pars.Length; i++) {
+          cmd.Parameters.AddWithValue("@p" + i, pars[i]);
+          cmd.Prepare();
+        }
       }
       SqliteDataReader reader = cmd.ExecuteReader();
       if (reader.Read()) {
@@ -36,12 +38,14 @@ namespace Nixill.SQLite {
     /// <para/>
     /// If the query returns no rows, an empty list is returned.
     /// </summary>
-    public static List<object> GetResultList(this SqliteConnection conn, string query, string param = null) {
+    public static List<object> GetResultList(this SqliteConnection conn, string query, params object[] pars) {
       using SqliteCommand cmd = conn.CreateCommand();
       cmd.CommandText = query;
-      if (param != null) {
-        cmd.Parameters.AddWithValue("@p", param);
-        cmd.Prepare();
+      if (pars != null) {
+        for (int i = 0; i < pars.Length; i++) {
+          cmd.Parameters.AddWithValue("@p" + i, pars[i]);
+          cmd.Prepare();
+        }
       }
       SqliteDataReader reader = cmd.ExecuteReader();
       List<object> ret = new List<object>();
@@ -59,12 +63,14 @@ namespace Nixill.SQLite {
     /// <para/>
     /// If the query returns no rows, an empty dictionary is returned.
     /// </summary>
-    public static Dictionary<string, object> GetResultDict(this SqliteConnection conn, string query, string param = null) {
+    public static Dictionary<string, object> GetResultDict(this SqliteConnection conn, string query, params object[] pars) {
       using SqliteCommand cmd = conn.CreateCommand();
       cmd.CommandText = query;
-      if (param != null) {
-        cmd.Parameters.AddWithValue("@p", param);
-        cmd.Prepare();
+      if (pars != null) {
+        for (int i = 0; i < pars.Length; i++) {
+          cmd.Parameters.AddWithValue("@p" + i, pars[i]);
+          cmd.Prepare();
+        }
       }
       SqliteDataReader reader = cmd.ExecuteReader();
       Dictionary<string, object> ret = new Dictionary<string, object>();
@@ -81,12 +87,14 @@ namespace Nixill.SQLite {
     /// <para/>
     /// If the query returns no rows, <c>null</c> is returned.
     /// </summary>
-    public static Dictionary<string, object> GetRowDict(this SqliteConnection conn, string query, string param = null) {
+    public static Dictionary<string, object> GetRowDict(this SqliteConnection conn, string query, params object[] pars) {
       using SqliteCommand cmd = conn.CreateCommand();
       cmd.CommandText = query;
-      if (param != null) {
-        cmd.Parameters.AddWithValue("@p", param);
-        cmd.Prepare();
+      if (pars != null) {
+        for (int i = 0; i < pars.Length; i++) {
+          cmd.Parameters.AddWithValue("@p" + i, pars[i]);
+          cmd.Prepare();
+        }
       }
       SqliteDataReader reader = cmd.ExecuteReader();
       if (reader.Read()) {

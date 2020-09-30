@@ -3,42 +3,25 @@ using Microsoft.Data.Sqlite;
 using Nixill.GTFS.Misc;
 using Nixill.GTFS.Parsing;
 using Nixill.SQLite;
+using Nixill.Utils;
 
 namespace Nixill.GTFS.Entity {
   public class GTFSShape : GTFSEntity {
-    internal override string TableName => "shapes";
+    internal override string TableName => "shape_ids";
     internal override string TableIDCol => "shape_id";
 
     internal GTFSShape(SqliteConnection conn, string id) : base(conn, id) { }
 
-    public GTFSShapePoint FirstPoint {
-      get {
-        int seq = GTFSObjectParser.GetInteger(Conn.GetResult("SELECT shape_pt_sequence FROM shapes WHERE shape_id = @p ORDER BY shape_pt_sequence ASC LIMIT 1;", ID)).Value;
-        return new GTFSShapePoint(Conn, this, seq);
-      }
-    }
-    public GTFSShapePoint LastPoint {
-      get {
-        int seq = GTFSObjectParser.GetInteger(Conn.GetResult("SELECT shape_pt_sequence FROM shapes WHERE shape_id = @p ORDER BY shape_pt_sequence DESC LIMIT 1;", ID)).Value;
-        return new GTFSShapePoint(Conn, this, seq);
-      }
-    }
+    public GTFSShapePoint FirstPoint => new GTFSShapePoint(Conn, this,
+      GTFSObjectParser.GetInteger(Conn.GetResult("SELECT min(shape_pt_sequence) FROM shapes WHERE shape_id = @p0;", ID)).Value);
+    public GTFSShapePoint LastPoint => new GTFSShapePoint(Conn, this,
+      GTFSObjectParser.GetInteger(Conn.GetResult("SELECT max(shape_pt_sequence) FROM shapes WHERE shape_id = @p0;", ID)).Value);
 
-    public IList<GTFSShapePoint> Points {
-      get {
-        List<GTFSShapePoint> ret = new List<GTFSShapePoint>();
+    public List<GTFSShapePoint> Points => Conn.GetResultList("SELECT shape_pt_sequence FROM shapes WHERE shape_id = @p0 ORDER BY shape_pt_sequence ASC;", ID)
+      .Transform(obj => new GTFSShapePoint(Conn, this, GTFSObjectParser.GetInteger(obj).Value));
 
-        foreach (object obj in Conn.GetResultList("SELECT shape_pt_sequence FROM shapes WHERE shape_id = @p ORDER BY shape_pt_sequence ASC;", ID)) {
-          int seq = GTFSObjectParser.GetInteger(obj).Value;
-          ret.Add(new GTFSShapePoint(Conn, this, seq));
-        }
-
-        return ret.AsReadOnly();
-      }
-    }
-
-    public int PointCount => GTFSObjectParser.GetInteger(Conn.GetResult("SELECT count(shape_pt_sequence) FROM shapes WHERE shape_id = @p;", ID)).Value;
-    public double? Length => GTFSObjectParser.GetFloat(Conn.GetResult("SELECT max(shape_dist_traveled) - min(shape_dist_traveled) FROM shapes WHERE shape_id = @p", ID));
+    public int PointCount => GTFSObjectParser.GetInteger(Conn.GetResult("SELECT count(shape_pt_sequence) FROM shapes WHERE shape_id = @p0;", ID)).Value;
+    public double? Length => GTFSObjectParser.GetFloat(Conn.GetResult("SELECT max(shape_dist_traveled) - min(shape_dist_traveled) FROM shapes WHERE shape_id = @p0;", ID));
   }
 
   public class GTFSShapePoint {
@@ -53,22 +36,22 @@ namespace Nixill.GTFS.Entity {
       Sequence = sequence;
     }
 
-    public float Latitude => (float)GTFSObjectParser.GetFloat(Conn.GetResult("SELECT shape_pt_lat FROM shapes WHERE shape_id = @p AND shape_pt_sequence = " + Sequence, Shape.ID)).Value;
-    public float Longitude => (float)GTFSObjectParser.GetFloat(Conn.GetResult("SELECT shape_pt_lon FROM shapes WHERE shape_id = @p AND shape_pt_sequence = " + Sequence, Shape.ID)).Value;
-    public double? Distance => GTFSObjectParser.GetFloat(Conn.GetResult("SELECT shape_dist_traveled FROM shapes WHERE shape_id = @p AND shape_pt_sequence = " + Sequence, Shape.ID));
+    public float Latitude => (float)GTFSObjectParser.GetFloat(Conn.GetResult("SELECT shape_pt_lat FROM shapes WHERE shape_id = @p0 AND shape_pt_sequence = @p1;", Shape.ID, Sequence)).Value;
+    public float Longitude => (float)GTFSObjectParser.GetFloat(Conn.GetResult("SELECT shape_pt_lon FROM shapes WHERE shape_id = @p0 AND shape_pt_sequence = @p1;", Shape.ID, Sequence)).Value;
+    public double? Distance => GTFSObjectParser.GetFloat(Conn.GetResult("SELECT shape_dist_traveled FROM shapes WHERE shape_id = @p0 AND shape_pt_sequence = @p1;", Shape.ID, Sequence));
 
     public Coordinates Coordinates => new Coordinates(Latitude, Longitude);
 
     public GTFSShapePoint Next {
       get {
-        int? next = GTFSObjectParser.GetInteger(Conn.GetResult("SELECT shape_pt_sequence FROM shapes WHERE shape_id = @p AND shape_pt_sequence > " + Sequence + " ORDER BY shape_pt_sequence ASC LIMIT 1;", Shape.ID));
+        int? next = GTFSObjectParser.GetInteger(Conn.GetResult("SELECT min(shape_pt_sequence) FROM shapes WHERE shape_id = @p0 AND shape_pt_sequence > @p1;", Shape.ID, Sequence));
         if (next.HasValue) return new GTFSShapePoint(Conn, Shape, next.Value);
         return null;
       }
     }
     public GTFSShapePoint Prev {
       get {
-        int? prev = GTFSObjectParser.GetInteger(Conn.GetResult("SELECT shape_pt_sequence FROM shapes WHERE shape_id = @p AND shape_pt_sequence < " + Sequence + " ORDER BY shape_pt_sequence DESC LIMIT 1;", Shape.ID));
+        int? prev = GTFSObjectParser.GetInteger(Conn.GetResult("SELECT max(shape_pt_sequence) FROM shapes WHERE shape_id = @p0 AND shape_pt_sequence < @p1;", Shape.ID, Sequence));
         if (prev.HasValue) return new GTFSShapePoint(Conn, Shape, prev.Value);
         return null;
       }

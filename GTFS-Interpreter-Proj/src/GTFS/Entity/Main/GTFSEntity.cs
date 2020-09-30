@@ -8,6 +8,8 @@ namespace Nixill.GTFS.Entity {
     internal abstract string TableName { get; }
     internal abstract string TableIDCol { get; }
 
+    internal object Select(string column) => Conn.GetResult($"SELECT {column} FROM {TableName} WHERE {TableIDCol} = @p0;", ID);
+
     public readonly string ID;
 
     internal GTFSEntity(SqliteConnection conn, string id) {
@@ -25,7 +27,7 @@ namespace Nixill.GTFS.Entity {
     }
 
     public Dictionary<string, object> GetProperties() {
-      return Conn.GetRowDict($"SELECT * FROM {TableName} WHERE {TableIDCol} = @p;", ID);
+      return Conn.GetRowDict($"SELECT * FROM {TableName} WHERE {TableIDCol} = @p0;", ID);
     }
   }
 }
