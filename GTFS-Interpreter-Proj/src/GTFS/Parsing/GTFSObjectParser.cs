@@ -19,7 +19,7 @@ namespace Nixill.GTFS.Parsing {
     private static Regex RgxColorTest = new Regex(@"^([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})$");
     private static Regex RgxCurrency = new Regex(@"^([A-Z]{3})$", RegexOptions.IgnoreCase);
     private static Regex RgxDate = new Regex(@"^(\d{4})([-/\. ]?)(\d\d)([-/\. ]?)(\d\d)$");
-    private static Regex RgxEmail = new Regex(@"^\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b$", RegexOptions.IgnoreCase);
+    private static Regex RgxEmail = new Regex(@"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$", RegexOptions.IgnoreCase);
     private static Regex RgxLanguage = new Regex(@"^[A-Z0-9]{1,8}(-[A-Z0-9]{1,8})*", RegexOptions.IgnoreCase);
     private static Regex RgxTime = new Regex(@"^(\d+):(\d\d):(\d\d)$");
 

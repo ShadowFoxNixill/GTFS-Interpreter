@@ -31,12 +31,24 @@ namespace Nixill.GTFS.Parsing {
       return FileUtils.StreamCharEnumerator(new StreamReader(ent.Open()));
     }
 
-    internal static bool CreateTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings,
+    internal static bool CreateTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings,
       string tableName, bool required, List<GTFSColumn> columns, bool agencyIdColumn = false,
       string virtualEntityTable = null, GTFSColumn? virtualEntityColumn = null,
       string primaryKey = null, List<string> parentTables = null) {
       // Long method signature. Here's the start of the code.
+      // If there are any parent tables, we should make sure those exist first.
+      HashSet<string> files = file.Files;
+
+      if (parentTables != null) {
+        foreach (string parent in parentTables) {
+          if (!files.Contains(parent)) {
+            return false;
+          }
+        }
+      }
+
       // Let's open a transaction and make a command.
+      SqliteConnection conn = file.Conn;
       SqliteTransaction trans = conn.BeginTransaction();
       SqliteCommand cmd = conn.CreateCommand();
       SqliteCommand veCmd = conn.CreateCommand();
@@ -284,9 +296,9 @@ namespace Nixill.GTFS.Parsing {
       return populated;
     }
 
-    internal static bool CreateFeedInfoTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
+    internal static bool CreateFeedInfoTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
       return CreateTable(
-        conn: conn, zip: zip, warnings: warnings,
+        file: file, zip: zip, warnings: warnings,
         tableName: "feed_info", required: false,
         columns: new List<GTFSColumn> {
           new GTFSColumn("feed_publisher_name", GTFSDataType.Text, "TEXT NOT NULL", true),
@@ -301,9 +313,9 @@ namespace Nixill.GTFS.Parsing {
         });
     }
 
-    internal static bool CreateAgencyTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
+    internal static bool CreateAgencyTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
       if (!CreateTable(
-        conn: conn, zip: zip, warnings: warnings,
+        file: file, zip: zip, warnings: warnings,
         tableName: "agency", required: true,
         columns: new List<GTFSColumn> {
           new GTFSColumn("agency_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL", true, true),
@@ -319,13 +331,13 @@ namespace Nixill.GTFS.Parsing {
         throw new GTFSParseException("No agencies were specified.");
       }
 
-      GTFSValidation.ValidateAgency(conn, warnings);
+      GTFSValidation.ValidateAgency(file.Conn, warnings);
 
       return true;
     }
 
-    internal static bool CreateRoutesTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
-      if (!(CreateTable(conn: conn, zip: zip, warnings: warnings,
+    internal static bool CreateRoutesTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
+      if (!(CreateTable(file: file, zip: zip, warnings: warnings,
       tableName: "routes", required: true, agencyIdColumn: true,
       columns: new List<GTFSColumn> {
         new GTFSColumn("route_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL", true, true),
@@ -344,7 +356,7 @@ namespace Nixill.GTFS.Parsing {
         throw new GTFSParseException("No routes were specified.");
       }
 
-      SqliteCommand cmd = conn.CreateCommand();
+      SqliteCommand cmd = file.Conn.CreateCommand();
       cmd.CommandText = "SELECT route_id FROM routes WHERE route_short_name IS NULL AND route_long_name IS NULL;";
       SqliteDataReader reader = cmd.ExecuteReader();
       while (reader.Read()) {
@@ -355,13 +367,13 @@ namespace Nixill.GTFS.Parsing {
       }
       cmd.Dispose();
 
-      cmd = conn.CreateCommand();
+      cmd = file.Conn.CreateCommand();
       cmd.CommandText = "DELETE FROM routes WHERE route_short_name IS NULL AND route_long_name IS NULL;";
       cmd.ExecuteNonQuery();
       cmd.Dispose();
 
       // Now let's make sure we still have at least one route.
-      cmd = conn.CreateCommand();
+      cmd = file.Conn.CreateCommand();
       cmd.CommandText = "SELECT route_id FROM routes;";
       if (!cmd.ExecuteReader().HasRows) {
         throw new GTFSParseException("No routes were specified that had either a route_short_name or route_long_name.");
@@ -372,8 +384,8 @@ namespace Nixill.GTFS.Parsing {
       return true;
     }
 
-    internal static bool CreateLevelsTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
-      return CreateTable(conn: conn, zip: zip, warnings: warnings,
+    internal static bool CreateLevelsTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(file: file, zip: zip, warnings: warnings,
         tableName: "levels", required: false, columns: new List<GTFSColumn>() {
           new GTFSColumn("level_id", GTFSDataType.ID, "TEXT NOT NULL PRIMARY KEY", true, true),
           new GTFSColumn("level_index", GTFSDataType.Float, "REAL NOT NULL", true),
@@ -381,8 +393,8 @@ namespace Nixill.GTFS.Parsing {
         });
     }
 
-    internal static bool CreateStopsTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
-      return CreateTable(conn: conn, zip: zip, warnings: warnings,
+    internal static bool CreateStopsTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(file: file, zip: zip, warnings: warnings,
         tableName: "stops", required: true, virtualEntityTable: "fare_zones",
         virtualEntityColumn: new GTFSColumn("zone_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL"),
         columns: new List<GTFSColumn>() {
@@ -403,8 +415,8 @@ namespace Nixill.GTFS.Parsing {
         });
     }
 
-    internal static bool CreateShapesTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
-      return CreateTable(conn: conn, zip: zip, warnings: warnings,
+    internal static bool CreateShapesTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(file: file, zip: zip, warnings: warnings,
         tableName: "shapes", required: false, virtualEntityTable: "shape_ids",
         virtualEntityColumn: new GTFSColumn("shape_id", GTFSDataType.ID, ""),
         columns: new List<GTFSColumn>() {
@@ -416,8 +428,8 @@ namespace Nixill.GTFS.Parsing {
         }, primaryKey: "shape_id, shape_pt_lat");
     }
 
-    internal static bool CreateCalendarTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
-      return CreateTable(conn: conn, zip: zip, warnings: warnings,
+    internal static bool CreateCalendarTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(file: file, zip: zip, warnings: warnings,
         tableName: "calendar", required: false, virtualEntityTable: "calendar_services",
         virtualEntityColumn: new GTFSColumn("service_id", GTFSDataType.ID, ""),
         columns: new List<GTFSColumn>() {
@@ -435,8 +447,8 @@ namespace Nixill.GTFS.Parsing {
       );
     }
 
-    internal static bool CreateCalendarDatesTable(SqliteConnection conn, ZipArchive zip, List<GTFSWarning> warnings) {
-      return CreateTable(conn: conn, zip: zip, warnings: warnings,
+    internal static bool CreateCalendarDatesTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(file: file, zip: zip, warnings: warnings,
         tableName: "calendar_dates", required: false, virtualEntityTable: "calendar_services",
         virtualEntityColumn: new GTFSColumn("service_id", GTFSDataType.ID, ""),
         columns: new List<GTFSColumn>() {
@@ -447,8 +459,37 @@ namespace Nixill.GTFS.Parsing {
       );
     }
 
-    internal static void CreateWarningsTable(SqliteConnection conn, List<GTFSWarning> warnings) {
-      SqliteCommand cmd = conn.CreateCommand();
+    internal static bool CreateFareAttributesTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(file: file, zip: zip, warnings: warnings,
+        tableName: "fare_attributes", required: false, agencyIdColumn: true,
+        columns: new List<GTFSColumn>() {
+          new GTFSColumn("fare_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL", true, true),
+          new GTFSColumn("price", GTFSDataType.NonNegativeFloat, "REAL NOT NULL", true),
+          new GTFSColumn("currency_type", GTFSDataType.Currency, "TEXT NOT NULL", true),
+          new GTFSColumn("payment_method", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_boolean", true),
+          new GTFSColumn("transfers", GTFSDataType.Integer, "INTEGER"),
+          new GTFSColumn("agency_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES agency"),
+          new GTFSColumn("transfer_duration", GTFSDataType.NonNegativeInteger, "INTEGER")
+        }
+      );
+    }
+
+    internal static bool CreateFareRulesTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(file: file, zip: zip, warnings: warnings,
+        tableName: "fare_rules", required: false, agencyIdColumn: false,
+        columns: new List<GTFSColumn>() {
+          new GTFSColumn("fare_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES fare_attributes", true),
+          new GTFSColumn("route_id", GTFSDataType.ID, "TEXT REFERENCES routes"),
+          new GTFSColumn("origin_id", GTFSDataType.ID, "TEXT REFERENCES fare_zones"),
+          new GTFSColumn("destination_id", GTFSDataType.ID, "TEXT REFERENCES fare_zones"),
+          new GTFSColumn("contains_id", GTFSDataType.ID, "TEXT REFERENCES fare_zones"),
+          new GTFSColumn("contains_group_id", GTFSDataType.ID, "TEXT")
+        }, parentTables: new List<string>() { "fare_attributes" }
+      );
+    }
+
+    internal static void CreateWarningsTable(GTFSFile file, List<GTFSWarning> warnings) {
+      SqliteCommand cmd = file.Conn.CreateCommand();
       cmd.CommandText = @"INSERT INTO gtfs_warnings (warn_message, warn_table, warn_field, warn_record) VALUES (@msg, @tbl, @fld, @rec);";
 
       foreach (GTFSWarning warn in warnings) {

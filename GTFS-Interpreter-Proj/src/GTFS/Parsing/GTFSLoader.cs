@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using Microsoft.Data.Sqlite;
-using Nixill.GTFS.Entity;
 
 namespace Nixill.GTFS.Parsing {
   public static class GTFSLoader {
@@ -35,15 +34,17 @@ namespace Nixill.GTFS.Parsing {
 
       // Now start actually creating tables.
       GTFSEnumerableMaker.Make(conn);
-      if (GTFSMaker.CreateAgencyTable(conn, file, warnings)) files.Add("agency");
-      if (GTFSMaker.CreateLevelsTable(conn, file, warnings)) files.Add("levels");
-      if (GTFSMaker.CreateRoutesTable(conn, file, warnings)) files.Add("routes");
-      if (GTFSMaker.CreateStopsTable(conn, file, warnings)) files.Add("stops");
-      if (GTFSMaker.CreateShapesTable(conn, file, warnings)) files.Add("shapes");
-      if (GTFSMaker.CreateCalendarTable(conn, file, warnings)) files.Add("calendar");
-      if (GTFSMaker.CreateCalendarDatesTable(conn, file, warnings)) files.Add("calendar_dates");
-      if (GTFSMaker.CreateFeedInfoTable(conn, file, warnings)) files.Add("feed_info");
-      GTFSMaker.CreateWarningsTable(conn, warnings);
+      if (GTFSMaker.CreateAgencyTable(ret, file, warnings)) files.Add("agency");
+      if (GTFSMaker.CreateLevelsTable(ret, file, warnings)) files.Add("levels");
+      if (GTFSMaker.CreateRoutesTable(ret, file, warnings)) files.Add("routes");
+      if (GTFSMaker.CreateStopsTable(ret, file, warnings)) files.Add("stops");
+      if (GTFSMaker.CreateShapesTable(ret, file, warnings)) files.Add("shapes");
+      if (GTFSMaker.CreateCalendarTable(ret, file, warnings)) files.Add("calendar");
+      if (GTFSMaker.CreateCalendarDatesTable(ret, file, warnings)) files.Add("calendar_dates");
+      if (GTFSMaker.CreateFareAttributesTable(ret, file, warnings)) files.Add("fare_attributes");
+      if (GTFSMaker.CreateFareRulesTable(ret, file, warnings)) files.Add("fare_rules");
+      if (GTFSMaker.CreateFeedInfoTable(ret, file, warnings)) files.Add("feed_info");
+      GTFSMaker.CreateWarningsTable(ret, warnings);
 
       // And output! :D
       return ret;

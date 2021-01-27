@@ -45,9 +45,27 @@ namespace Nixill.GTFS.Entity {
     }
 
     public List<GTFSStopTime> ServiceTo(Duration? startTime = null, Duration? endTime = null, GTFSCalendar calendar = null, GTFSRoute route = null) {
-      StringBuilder cmdText = new StringBuilder("SELECT stop_times.trip_id, stop_times.stop_sequence FROM stop_times JOIN trips ON stop_times.trip_id = trips.trip_id WHERE ");
+      StringBuilder cmdText = new StringBuilder(@"
+        SELECT stop_times.trip_id, stop_times.stop_sequence
+        FROM stop_times
+          JOIN trips ON stop_times.trip_id = trips.trip_id
+        WHERE stop_id ");
 
-      // For stops, we 
+      // For stops, we just use a stop_id equal to the stop
+      // For stations, every stop_id that is a child of the station
+      // For anything else, return an empty list.
+      GTFSLocationType type = Type;
+      if (type == GTFSLocationType.Platform) {
+        cmdText.Append("= @p0");
+      }
+      else if (type == GTFSLocationType.Station) {
+        cmdText.Append("IN (SELECT stop_id FROM stops WHERE parent_station = @p0)");
+      }
+      else {
+        return new List<GTFSStopTime>();
+      }
+
+      
     }
   }
 
