@@ -227,7 +227,7 @@ CREATE TABLE trips (
   trip_short_name TEXT,
   direction_id INTEGER REFERENCES enum_boolean,
   block_id TEXT,
-  shape_id TEXT REFERENCES shapes,
+  shape_id TEXT REFERENCES shape_ids,
   wheelchair_accessible INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0,
   bikes_allowed INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0
 );

@@ -41,6 +41,7 @@ namespace Nixill.GTFS.Parsing {
       if (GTFSMaker.CreateShapesTable(ret, file, warnings)) files.Add("shapes");
       if (GTFSMaker.CreateCalendarTable(ret, file, warnings)) files.Add("calendar");
       if (GTFSMaker.CreateCalendarDatesTable(ret, file, warnings)) files.Add("calendar_dates");
+      if (GTFSMaker.CreateTripsTable(ret, file, warnings)) files.Add("trips");
       if (GTFSMaker.CreateFareAttributesTable(ret, file, warnings)) files.Add("fare_attributes");
       if (GTFSMaker.CreateFareRulesTable(ret, file, warnings)) files.Add("fare_rules");
       if (GTFSMaker.CreateFeedInfoTable(ret, file, warnings)) files.Add("feed_info");

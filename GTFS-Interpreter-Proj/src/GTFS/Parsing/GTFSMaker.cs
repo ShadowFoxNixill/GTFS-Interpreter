@@ -459,6 +459,24 @@ namespace Nixill.GTFS.Parsing {
       );
     }
 
+    internal static bool CreateTripsTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(file: file, zip: zip, warnings: warnings,
+        tableName: "trips", required: true,
+        columns: new List<GTFSColumn>() {
+          new GTFSColumn("trip_id", GTFSDataType.ID, "TEXT PRIMARY KEY NOT NULL", true, true),
+          new GTFSColumn("route_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES routes", true),
+          new GTFSColumn("service_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES calendar_services", true),
+          new GTFSColumn("trip_headsign", GTFSDataType.Text, "TEXT"),
+          new GTFSColumn("trip_short_name", GTFSDataType.Text, "TEXT"),
+          new GTFSColumn("direction_id", GTFSDataType.Enum, "INTEGER REFERENCES enum_boolean"),
+          new GTFSColumn("block_id", GTFSDataType.ID, "TEXT"),
+          new GTFSColumn("shape_id", GTFSDataType.ID, "TEXT REFERENCES shape_ids"),
+          new GTFSColumn("wheelchair_accessible", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_tristate DEFAULT 0"),
+          new GTFSColumn("bikes_allowed", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_tristate")
+        }
+      );
+    }
+
     internal static bool CreateFareAttributesTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
       return CreateTable(file: file, zip: zip, warnings: warnings,
         tableName: "fare_attributes", required: false, agencyIdColumn: true,
@@ -476,7 +494,7 @@ namespace Nixill.GTFS.Parsing {
 
     internal static bool CreateFareRulesTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
       return CreateTable(file: file, zip: zip, warnings: warnings,
-        tableName: "fare_rules", required: false, agencyIdColumn: false,
+        tableName: "fare_rules", required: false,
         columns: new List<GTFSColumn>() {
           new GTFSColumn("fare_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES fare_attributes", true),
           new GTFSColumn("route_id", GTFSDataType.ID, "TEXT REFERENCES routes"),
