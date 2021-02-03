@@ -477,6 +477,26 @@ namespace Nixill.GTFS.Parsing {
       );
     }
 
+    internal static bool CreateStopTimesTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
+      return CreateTable(file: file, zip: zip, warnings: warnings,
+        tableName: "stop_times", required: true,
+        columns: new List<GTFSColumn>() {
+          new GTFSColumn("trip_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES trips", true, true),
+          new GTFSColumn("stop_sequence", GTFSDataType.NonNegativeInteger, "INTEGER NOT NULL", true, true),
+          new GTFSColumn("arrival_time", GTFSDataType.Time, "TEXT"),
+          new GTFSColumn("departure_time", GTFSDataType.Time, "TEXT"),
+          new GTFSColumn("stop_id", GTFSDataType.ID, "TEXT NOT NULL REFERENCES stops", true),
+          new GTFSColumn("stop_headsign", GTFSDataType.Text, "TEXT"),
+          new GTFSColumn("pickup_type", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_pickup_drop_off DEFAULT 0"),
+          new GTFSColumn("drop_off_type", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_pickup_drop_off DEFAULT 0"),
+          new GTFSColumn("continuous_pickup", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_pickup_drop_off DEFAULT 1"),
+          new GTFSColumn("continuous_drop_off", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_pickup_drop_off DEFAULT 1"),
+          new GTFSColumn("shape_dist_traveled", GTFSDataType.NonNegativeFloat, "REAL"),
+          new GTFSColumn("timepoint", GTFSDataType.Enum, "INTEGER NOT NULL REFERENCES enum_boolean")
+        }
+      );
+    }
+
     internal static bool CreateFareAttributesTable(GTFSFile file, ZipArchive zip, List<GTFSWarning> warnings) {
       return CreateTable(file: file, zip: zip, warnings: warnings,
         tableName: "fare_attributes", required: false, agencyIdColumn: true,

@@ -85,5 +85,21 @@ namespace Nixill.GTFS.Parsing {
     public Dictionary<string, object> GetRowDict(string query, params object[] pars) {
       return Conn.GetRowDict(query, pars);
     }
+
+    /// <summary>
+    /// Queries this <c>GTFSFile</c>'s internal database, and returns the
+    /// resulting <c>ResultSet</c> directly.
+    /// </summary>
+    public SqliteDataReader Query(string query, params object[] pars) {
+      SqliteCommand cmd = Conn.CreateCommand();
+      cmd.CommandText = query;
+      if (pars != null) {
+        for (int i = 0; i < pars.Length; i++) {
+          cmd.Parameters.AddWithValue("@p" + i, pars[i]);
+          cmd.Prepare();
+        }
+      }
+      return cmd.ExecuteReader();
+    }
   }
 }
